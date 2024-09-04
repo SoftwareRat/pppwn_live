@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,6 +19,7 @@ jobs:
         uses: jirutka/setup-alpine@v1
         with:
           branch: edge
+          shell-name: alpine.sh
     
       - name: Install required packages and build ISO
         shell: alpine.sh --root {0}
@@ -38,22 +39,20 @@ jobs:
 
           echo "Listing files in ~/iso after ISO creation:"
           ls -l ~/iso/
-      
-      - name: Check if ISO was created
-        run: |
-          echo "Listing files in ~/iso:"
-          ls -l ~/iso/
-          if [ -z "$(ls -A ~/iso/*.iso 2>/dev/null)" ]; then
-            echo "ISO not found. Exiting."
-            exit 1
-          fi
 
       - name: Copy ISO to shared location
         run: |
+          echo "Listing files in ~/iso/ before copy:"
+          ls -l ~/iso/
           mkdir -p /home/runner/iso/
-          echo "Copying ISO files to shared location..."
-          cp ~/iso/*.iso /home/runner/iso/
-      
+          if [ -f ~/iso/*.iso ]; then
+            echo "Copying ISO files from ~/iso/ to /home/runner/iso/"
+            cp ~/iso/*.iso /home/runner/iso/
+          else
+            echo "No ISO files found in ~/iso/. Exiting."
+            exit 1
+          fi
+        
       - name: Check if ISO was copied and exists
         run: |
           echo "Listing files in /home/runner/iso:"
