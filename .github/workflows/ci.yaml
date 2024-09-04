@@ -30,11 +30,8 @@ jobs:
           cp -rf custom/* aports/scripts/
           cp /home/runner/work/pppwn_live/pppwn_live/custom/pppwn.tar.gz /home/runner/work/pppwn_live/pppwn_live/aports/scripts/
           chmod -f +x aports/scripts/*
+          mkdir -pv ~/iso
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-    
-      - name: (DEBUG:) List ISO directory contents
-        run: |
-          ls -l ~/iso/
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
