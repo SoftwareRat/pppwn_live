@@ -21,12 +21,12 @@ jobs:
       shell: alpine.sh --root {0}
       run: |
         apk add alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
-        su - build -c "abuild-keygen -i -a"
-        su - build -c "doas apk update"
-        su - build -c "mkdir -pv ~/tmp && export TMPDIR=~/tmp"
+        abuild-keygen -i -a
+        doas apk update
+        "mkdir -pv ~/tmp && export TMPDIR=~/tmp
         cp -r custom/* aports/scripts/
         chmod +x aports/scripts/*
-        su - build -c "sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn"
+        sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
     
     - name: Upload ISO artifact
       uses: actions/upload-artifact@v4
