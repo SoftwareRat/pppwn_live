@@ -28,11 +28,9 @@ jobs:
           apk update
           mkdir -pv ~/tmp && export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/ || true
-          ls -la /home/runner/work/pppwn_live/pppwn_live/aports/scripts/
-          ls -la /home/runner/work/pppwn_live/pppwn_live/aports/
-          ls -la /home/runner/work/pppwn_live/pppwn_live/custom/
           cp /home/runner/work/pppwn_live/pppwn_live/custom/pppwn.tar.gz /home/runner/work/pppwn_live/pppwn_live/aports/scripts/
-          chmod -f +x aports/scripts/* || true          sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+          chmod -f +x aports/scripts/* || true
+          sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
     
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
