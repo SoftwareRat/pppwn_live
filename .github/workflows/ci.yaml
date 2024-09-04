@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: 'true'
+          submodules: true
     
       - name: Setup Alpine Linux environment
         uses: jirutka/setup-alpine@v1
@@ -27,9 +27,9 @@ jobs:
           abuild-keygen -i -a -n -q
           apk update
           mkdir -pv ~/tmp && export TMPDIR=~/tmp
-          cp -rf custom/* aports/scripts/ || true
+          cp -rf custom/* aports/scripts/
           cp /home/runner/work/pppwn_live/pppwn_live/custom/pppwn.tar.gz /home/runner/work/pppwn_live/pppwn_live/aports/scripts/
-          chmod -f +x aports/scripts/* || true
+          chmod -f +x aports/scripts/*
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
     
       - name: DEBUG: List ISO directory contents
