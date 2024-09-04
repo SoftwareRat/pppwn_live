@@ -21,8 +21,8 @@ jobs:
       shell: alpine.sh --root {0}
       run: |
         apk add alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
-        abuild-keygen -i -a
-        doas apk update
+        abuild-keygen -i -a -n -q
+        apk update
         "mkdir -pv ~/tmp && export TMPDIR=~/tmp
         cp -r custom/* aports/scripts/
         chmod +x aports/scripts/*
