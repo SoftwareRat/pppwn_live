@@ -34,10 +34,13 @@ jobs:
           chmod +x aports/scripts/*
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
-      - name: Copy ISO to shared location
+      - name: Copy ISO to shared location if not already present
         shell: alpine.sh --root {0}
         run: |
-          cp ~/iso/*.iso /home/runner/iso/
+          mkdir -p /home/runner/iso/
+          if [ ! -f /home/runner/iso/*.iso ]; then
+            cp ~/iso/*.iso /home/runner/iso/
+          fi
       
       - name: Check if ISO was copied and exists
         run: |
@@ -50,4 +53,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pppwn-live-iso
-          path: ~/iso/*.iso
+          path: /home/runner/iso/*.iso
