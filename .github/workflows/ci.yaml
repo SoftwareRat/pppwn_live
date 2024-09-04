@@ -32,14 +32,25 @@ jobs:
           cp -rf custom/* aports/scripts/
           cp ./custom/pppwn.tar.gz aports/scripts/
           chmod +x aports/scripts/*
+          
+          echo "Running mkimage.sh script..."
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+
+          echo "Listing files in ~/iso after ISO creation:"
+          ls -l ~/iso/
+      
+      - name: Check if ISO was created
+        run: |
+          echo "Listing files in ~/iso:"
+          ls -l ~/iso/
+          if [ -z "$(ls -A ~/iso/*.iso 2>/dev/null)" ]; then
+            echo "ISO not found. Exiting."
+            exit 1
+          fi
 
       - name: Copy ISO to shared location
         run: |
           mkdir -p /home/runner/iso/
-          # Ensure we list and see the ISO files before copying
-          echo "Listing files in ~/iso:"
-          ls -l ~/iso/
           echo "Copying ISO files to shared location..."
           cp ~/iso/*.iso /home/runner/iso/
       
@@ -48,7 +59,7 @@ jobs:
           echo "Listing files in /home/runner/iso:"
           ls -l /home/runner/iso/
           if [ -z "$(ls -A /home/runner/iso/*.iso 2>/dev/null)" ]; then
-            echo "ISO not found. Exiting."
+            echo "ISO not found in shared location. Exiting."
             exit 1
           fi
 
