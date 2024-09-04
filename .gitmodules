@@ -1,4 +1,4 @@
 [submodule "aports"]
 	path = aports
 	url = https://gitlab.alpinelinux.org/alpine/aports.git
-	br
+	branch = master
