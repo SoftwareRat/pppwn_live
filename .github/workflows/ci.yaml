@@ -10,29 +10,37 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           submodules: true
     
       - name: Setup Alpine Linux environment
         uses: jirutka/setup-alpine@v1
         with:
-          branch: edge  # Use the edge branch for latest packages
+          branch: edge
     
       - name: Install required packages and build ISO
         shell: alpine.sh --root {0}
         run: |
-          apk add alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
+          apk add --no-cache alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
-          mkdir -pv ~/tmp && export TMPDIR=~/tmp
+          mkdir -p ~/tmp ~/iso
+          export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
-          cp /home/runner/work/pppwn_live/pppwn_live/custom/pppwn.tar.gz /home/runner/work/pppwn_live/pppwn_live/aports/scripts/
-          chmod -f +x aports/scripts/*
-          mkdir -pv ~/iso
+          cp ./custom/pppwn.tar.gz aports/scripts/
+          chmod +x aports/scripts/*
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-
+          
+      - name: Check if ISO was created
+        run: |
+          if [ -z "$(ls -A ~/iso/*.iso 2>/dev/null)" ]; then
+            echo "ISO not found. Exiting."
+            exit 1
+          fi
+          
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
