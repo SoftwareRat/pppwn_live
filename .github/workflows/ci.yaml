@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: 'true'
     
     - name: Setup Alpine Linux environment
       uses: jirutka/setup-alpine@v1
