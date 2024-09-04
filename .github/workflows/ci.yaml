@@ -34,16 +34,19 @@ jobs:
           chmod +x aports/scripts/*
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
-      - name: Copy ISO to shared location if not already present
-        shell: alpine.sh --root {0}
+      - name: Copy ISO to shared location
         run: |
           mkdir -p /home/runner/iso/
-          if [ ! -f /home/runner/iso/*.iso ]; then
-            cp ~/iso/*.iso /home/runner/iso/
-          fi
+          # Ensure we list and see the ISO files before copying
+          echo "Listing files in ~/iso:"
+          ls -l ~/iso/
+          echo "Copying ISO files to shared location..."
+          cp ~/iso/*.iso /home/runner/iso/
       
       - name: Check if ISO was copied and exists
         run: |
+          echo "Listing files in /home/runner/iso:"
+          ls -l /home/runner/iso/
           if [ -z "$(ls -A /home/runner/iso/*.iso 2>/dev/null)" ]; then
             echo "ISO not found. Exiting."
             exit 1
