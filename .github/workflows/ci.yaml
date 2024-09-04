@@ -25,7 +25,7 @@ jobs:
         echo "permit nopass root" | tee -a /etc/doas.conf
         abuild-keygen -i -a -n -q
         apk update
-        "mkdir -pv ~/tmp && export TMPDIR=~/tmp
+        mkdir -pv ~/tmp && export TMPDIR=~/tmp
         cp -r custom/* aports/scripts/
         chmod +x aports/scripts/*
         sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
