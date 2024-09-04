@@ -71,7 +71,19 @@ ttyS0::respawn:/sbin/getty -L 0 ttyS0 vt100
 EOF
 
 makefile root:root 0644 "$tmp"/etc/motd <<EOF
-Welcome to PPPwnLive! Please make sure to have your Ethernet cable plugged in and connected to the PlayStation 4.
+\e[1;36m__________________                _     _           
+| ___ \ ___ \ ___ \              | |   (_)          
+| |_/ / |_/ / |_/ /_      ___ __ | |    ___   _____ 
+|  __/|  __/|  __/\ \ /\ / / '_ \| |   | \ \ / / _ \\
+| |   | |   | |    \ V  V /| | | | |___| |\ V /  __/
+\_|   \_|   \_|     \_/\_/ |_| |_\_____/_| \_/ \___|
+                                                    
+                                                    \e[0m
+\e[1;33mWelcome to PPPwnLive!\e[0m Please make sure to have your Ethernet cable plugged in and connected to the PlayStation 4.
+
+\e[1;32mCredits:\e[0m
+- \e[1;34mxfangfang\e[0m (https://github.com/xfangfang/PPPwn_cpp) for developing the C++ version of PPPwn
+- \e[1;35mTheOfficialFloW\e[0m (https://github.com/TheOfficialFloW/PPPwn) for the original discovery and creation of PPPwn
 EOF
 
 makefile root:root 0755 "$tmp"/etc/setup.sh <<EOF

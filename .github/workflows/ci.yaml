@@ -32,6 +32,10 @@ jobs:
           chmod -f +x aports/scripts/* || true
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
     
+      - name: DEBUG: List ISO directory contents
+        run: |
+          ls -l ~/iso/
+
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
