@@ -28,6 +28,7 @@ jobs:
         su - build -c "doas apk update"
         su - build -c "mkdir -pv ~/tmp && export TMPDIR=~/tmp"
         cp -r custom/* aports/scripts/
+        chmod +x aports/scripts/*
         su - build -c "sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn"
     
     - name: Upload ISO artifact
