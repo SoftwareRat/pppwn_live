@@ -18,7 +18,7 @@ jobs:
         branch: edge  # Use the edge branch for latest packages
     
     - name: Install required packages and build ISO
-      shell: alpine.sh {0}
+      shell: alpine.sh --root {0}
       run: |
         apk add alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
         adduser build -G abuild
