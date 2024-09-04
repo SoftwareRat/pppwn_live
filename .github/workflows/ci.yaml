@@ -19,7 +19,6 @@ jobs:
         uses: jirutka/setup-alpine@v1
         with:
           branch: edge
-          volumes: ${{ github.workspace }}:/mnt/host
 
       - name: Install required packages and build ISO
         shell: alpine.sh --root {0}
@@ -28,29 +27,17 @@ jobs:
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
-          mkdir -p ~/tmp /mnt/host/iso
+          mkdir -p ~/tmp ~/work/iso
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
           cp ./custom/pppwn.tar.gz aports/scripts/
           chmod +x aports/scripts/*
           
           echo "Running mkimage.sh script..."
-          sh aports/scripts/mkimage.sh --tag edge --outdir /mnt/host/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-
-          echo "Listing files in /mnt/host/iso after ISO creation:"
-          ls -l /mnt/host/iso/
-
-      - name: Check if ISO was copied and exists
-        run: |
-          echo "Listing files in /mnt/host/iso:"
-          ls -l /mnt/host/iso/
-          if [ -z "$(ls -A /mnt/host/iso/*.iso 2>/dev/null)" ]; then
-            echo "ISO not found in shared location. Exiting."
-            exit 1
-          fi
+          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
           name: pppwn-live-iso
-          path: /mnt/host/iso/*.iso
+          path: ~/work/iso/*.iso
