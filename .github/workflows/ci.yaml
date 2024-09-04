@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
     
     - name: Setup Alpine Linux environment
       uses: jirutka/setup-alpine@v1
