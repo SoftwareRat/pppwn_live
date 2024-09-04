@@ -29,12 +29,8 @@ mkdir -p "$tmp"/etc/init.d
 mkdir -p "$tmp"/etc/apk
 mkdir -p "$tmp"/root
 
-# Debug: List current and parent directories
-echo "Current directory: $(pwd)"
-echo "Parent directory: $(dirname "$(pwd)")"
-# Try to copy from the parent directory
-cp ../pppwn.tar.gz "$tmp"/etc/pppwn.tar.gz || true
-cp pppwn.tar.gz "$tmp"/etc/pppwn.tar.gz
+# WAR: Search for an aports/scripts/pppwn.tar.gz file in the home directory and copy it to "$tmp"/etc/
+find ~ -path "*/aports/scripts/pppwn.tar.gz" -exec cp {} "$tmp"/etc/pppwn.tar.gz \;
 
 makefile root:root 0644 "$tmp"/etc/hostname <<EOF
 $HOSTNAME
