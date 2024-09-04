@@ -29,7 +29,7 @@ mkdir -p "$tmp"/etc/init.d
 mkdir -p "$tmp"/etc/apk
 mkdir -p "$tmp"/root
 
-cp ~/aports/scripts/pppwn.tar.gz "$tmp"/etc/pppwn.tar.gz
+cp pppwn.tar.gz "$tmp"/etc/pppwn.tar.gz
 
 makefile root:root 0644 "$tmp"/etc/hostname <<EOF
 $HOSTNAME
