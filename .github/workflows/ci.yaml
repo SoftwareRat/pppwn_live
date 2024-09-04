@@ -14,13 +14,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
-    
+
       - name: Setup Alpine Linux environment
         uses: jirutka/setup-alpine@v1
         with:
           branch: edge
-          shell-name: alpine.sh
-    
+          volumes: ${{ github.workspace }}:/mnt/host
+
       - name: Install required packages and build ISO
         shell: alpine.sh --root {0}
         run: |
@@ -28,36 +28,23 @@ jobs:
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
-          mkdir -p ~/tmp ~/iso
+          mkdir -p ~/tmp /mnt/host/iso
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
           cp ./custom/pppwn.tar.gz aports/scripts/
           chmod +x aports/scripts/*
           
           echo "Running mkimage.sh script..."
-          sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+          sh aports/scripts/mkimage.sh --tag edge --outdir /mnt/host/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
-          echo "Listing files in ~/iso after ISO creation:"
-          ls -l ~/iso/
+          echo "Listing files in /mnt/host/iso after ISO creation:"
+          ls -l /mnt/host/iso/
 
-      - name: Copy ISO to shared location
-        run: |
-          echo "Listing files in ~/iso/ before copy:"
-          ls -l ~/iso/
-          mkdir -p /home/runner/iso/
-          if [ -f ~/iso/*.iso ]; then
-            echo "Copying ISO files from ~/iso/ to /home/runner/iso/"
-            cp ~/iso/*.iso /home/runner/iso/
-          else
-            echo "No ISO files found in ~/iso/. Exiting."
-            exit 1
-          fi
-        
       - name: Check if ISO was copied and exists
         run: |
-          echo "Listing files in /home/runner/iso:"
-          ls -l /home/runner/iso/
-          if [ -z "$(ls -A /home/runner/iso/*.iso 2>/dev/null)" ]; then
+          echo "Listing files in /mnt/host/iso:"
+          ls -l /mnt/host/iso/
+          if [ -z "$(ls -A /mnt/host/iso/*.iso 2>/dev/null)" ]; then
             echo "ISO not found in shared location. Exiting."
             exit 1
           fi
@@ -66,4 +53,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pppwn-live-iso
-          path: /home/runner/iso/*.iso
+          path: /mnt/host/iso/*.iso
