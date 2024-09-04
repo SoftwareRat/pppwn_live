@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Setup Alpine Linux environment
       uses: jirutka/setup-alpine@v1
@@ -21,9 +21,6 @@ jobs:
       shell: alpine.sh --root {0}
       run: |
         apk add alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
-        adduser build -G abuild
-        echo "permit :abuild" >> /etc/doas.d/doas.conf
-        echo "permit persist :abuild" >> /etc/doas.d/doas.conf
         su - build -c "abuild-keygen -i -a"
         su - build -c "doas apk update"
         su - build -c "mkdir -pv ~/tmp && export TMPDIR=~/tmp"
