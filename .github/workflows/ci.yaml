@@ -21,6 +21,8 @@ jobs:
       shell: alpine.sh --root {0}
       run: |
         apk add alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
+        # use tee command to allow the root user to run doas commands without password
+        echo "permit nopass root" | tee -a /etc/doas.conf
         abuild-keygen -i -a -n -q
         apk update
         "mkdir -pv ~/tmp && export TMPDIR=~/tmp
