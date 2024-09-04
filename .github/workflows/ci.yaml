@@ -29,7 +29,7 @@ jobs:
           mkdir -pv ~/tmp && export TMPDIR=~/tmp
           cp -r custom/* aports/scripts/
           ls -la /home/runner/work/pppwn_live/pppwn_live/aports/scripts/
-          ls -la /home/runner/work/pppwn_live/pppwn_live/aports/custom
+          ls -la /home/runner/work/pppwn_live/pppwn_live/aports/
           cp /home/runner/work/pppwn_live/pppwn_live/aports/custom/pppwn.tar.gz /home/runner/work/pppwn_live/pppwn_live/aports/scripts/
           chmod +x aports/scripts/*.sh
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
