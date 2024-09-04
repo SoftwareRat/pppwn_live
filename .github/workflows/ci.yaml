@@ -1,0 +1,38 @@
+name: Build Custom Alpine ISO
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Setup Alpine Linux environment
+      uses: jirutka/setup-alpine@v1
+      with:
+        branch: edge  # Use the edge branch for latest packages
+    
+    - name: Install required packages and build ISO
+      shell: alpine.sh {0}
+      run: |
+        apk add alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
+        adduser build -G abuild
+        echo "permit :abuild" >> /etc/doas.d/doas.conf
+        echo "permit persist :abuild" >> /etc/doas.d/doas.conf
+        su - build -c "abuild-keygen -i -a"
+        su - build -c "doas apk update"
+        su - build -c "mkdir -pv ~/tmp && export TMPDIR=~/tmp"
+        cp -r custom/* aports/scripts/
+        chmod +x aports/scripts/*
+        su - build -c "sh aports/scripts/mkimage.sh --tag edge --outdir ~/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn"
+    
+    - name: Upload ISO artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: custom-alpine-iso
+        path: ~/iso/*.iso
