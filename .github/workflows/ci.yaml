@@ -14,7 +14,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
-          fetch-depth: 0
 
       - name: Setup Alpine Linux environment
         uses: jirutka/setup-alpine@v1
@@ -33,7 +32,8 @@ jobs:
           cp -rf custom/* aports/scripts/
           cp ./custom/pppwn.tar.gz aports/scripts/
           chmod +x aports/scripts/*
-          
+          # WAR: Fix missing '/lib/libalpine.sh'
+          ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
           echo "Running mkimage.sh script..."
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
