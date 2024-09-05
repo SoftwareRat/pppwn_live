@@ -33,6 +33,7 @@ jobs:
             bash
             agetty
             wget
+            mtools
           shell-name: alpine-x86_64.sh
 
       - name: Setup latest Alpine Linux for aarch64
@@ -54,6 +55,7 @@ jobs:
             bash
             agetty
             wget
+            mtools
           shell-name: alpine-aarch64.sh
 
       - name: Create pppwn.tar.gz (x86_64)
@@ -99,7 +101,6 @@ jobs:
       - name: Install required packages and prepare environment (aarch64)
         shell: alpine-aarch64.sh --root {0}
         run: |
-          find /tmp -name "pppwn-aarch64.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
@@ -114,12 +115,14 @@ jobs:
         shell: alpine-x86_64.sh --root {0}
         run: |
           echo "Building ISO for x86_64..."
+          find /tmp -name "pppwn-x86_64.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/x86_64 --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
       - name: Build ISO for aarch64
         shell: alpine-aarch64.sh --root {0}
         run: |
           echo "Building ISO for aarch64..."
+          find /tmp -name "pppwn-aarch64.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/aarch64 --arch aarch64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
       - name: Upload ISO artifacts for x86_64
