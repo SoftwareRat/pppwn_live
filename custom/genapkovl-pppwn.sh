@@ -52,6 +52,7 @@ busybox
 openrc
 bash
 agetty
+rp-pppoe
 EOF
 
 # Configure /etc/inittab for auto-login
@@ -103,10 +104,15 @@ if [ -n "\$ETH_IF" ]; then
         poweroff
     else
         echo "PPPwn failed to execute successfully."
-        echo "Press any key to shutdown..."
-        read -n 1 -s
-        poweroff
-    fi
+        echo "Press 'q' to exit without shutting down, or any other key to shutdown..."
+        read -n 1 -s key
+        if [ "$key" = "q" ]; then
+            echo "Exiting without shutdown."
+            exit 1
+        else
+            echo "Shutting down..."
+            poweroff
+        fi 
 else
     echo "No ethernet interface found. Please check your connection."
     echo "Press any key to shutdown..."

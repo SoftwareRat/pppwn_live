@@ -23,7 +23,7 @@ jobs:
       - name: Install required packages and build ISO
         shell: alpine.sh --root {0}
         run: |
-          apk add --no-cache alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
+          apk add --no-cache alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty rp-pppoe
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
