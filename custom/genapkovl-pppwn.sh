@@ -52,7 +52,6 @@ busybox
 openrc
 bash
 agetty
-rp-pppoe
 EOF
 
 # Configure /etc/inittab for auto-login
@@ -71,8 +70,6 @@ tty2::respawn:/sbin/getty 38400 tty2
 
 ttyS0::respawn:/sbin/getty -L 0 ttyS0 vt100
 EOF
-
-
 
 makefile root:root 0644 "$tmp"/etc/profile.d/motd.sh <<EOF
 #!/bin/bash
@@ -105,28 +102,10 @@ if [ -n "\$ETH_IF" ]; then
     # Run pppwn command with the detected interface
     cd /root/pppwnlive
     while true; do
-        if timeout 300 ./pppwn -i "\$ETH_IF" --fw 1100 --stage1 stage1.bin --stage2 stage2.bin -a; then
-            echo "PPPwn executed successfully. Shutting down..."
-            sleep 3
-            poweroff
-        else
-            if [ \$? -eq 124 ]; then
-                echo "PPPwn timed out after 5 minutes. Shutting down..."
-                sleep 3
-                poweroff
-            else
-                echo "PPPwn failed to execute successfully."
-                echo "Press 'q' to exit without shutting down, or wait 3 seconds for automatic restart..."
-                if timeout 3 read -n 1 -s key; then
-                    if [ "\$key" = "q" ]; then
-                        echo "Exiting without shutdown."
-                        exit 1
-                    fi
-                else
-                    echo "No input received. Restarting script..."
-                fi
-            fi
-        fi
+        ./pppwn -i "\$ETH_IF" --fw 1100 --stage1 stage1.bin --stage2 stage2.bin -a
+        echo "PPPwn finished execution. Shutting down..."
+        sleep 3
+        poweroff
     done
 else
     echo "No ethernet interface found. Please check your connection."

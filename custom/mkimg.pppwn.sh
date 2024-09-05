@@ -11,7 +11,7 @@ profile_pppwn() {
     syslinux_serial="0 115200"
     boot_addons="amd-ucode intel-ucode"
     initrd_ucode="/boot/amd-ucode.img /boot/intel-ucode.img"
-    apks="alpine-base busybox openrc bash agetty rp-pppoe"
+    apks="alpine-base busybox openrc bash agetty"
 	local _k _a
 	for _k in $kernel_flavors; do
 		apks="$apks linux-$_k"
@@ -20,6 +20,6 @@ profile_pppwn() {
 		done
 	done
 
-    apks="$apks linux-firmware linux-firmware-none"
+    apks="$apks linux-firmware-none"
     apkovl="aports/scripts/genapkovl-pppwn.sh"
 }

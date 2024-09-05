@@ -1,4 +1,4 @@
-name: Build Custom Alpine ISO
+name: Build the pppwn_live iso images
 
 on:
   push:
@@ -15,30 +15,127 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup Alpine Linux environment
+      - name: Setup latest Alpine Linux for x86_64
         uses: jirutka/setup-alpine@v1
         with:
           branch: edge
+          packages: |
+            alpine-sdk
+            alpine-conf
+            syslinux
+            xorriso
+            squashfs-tools
+            grub
+            grub-efi
+            doas
+            alpine-base
+            busybox
+            openrc
+            bash
+            agetty
+            wget
+          shell-name: alpine-x86_64.sh
 
-      - name: Install required packages and build ISO
-        shell: alpine.sh --root {0}
+      - name: Setup latest Alpine Linux for aarch64
+        uses: jirutka/setup-alpine@v1
+        with:
+          arch: aarch64
+          branch: edge
+          packages: |
+            alpine-sdk
+            alpine-conf
+            syslinux
+            xorriso
+            squashfs-tools
+            grub
+            grub-efi
+            doas
+            alpine-base
+            busybox
+            openrc
+            bash
+            agetty
+            wget
+          shell-name: alpine-aarch64.sh
+
+      - name: Create pppwn.tar.gz (x86_64)
+        shell: alpine-x86_64.sh {0}
         run: |
-          apk add --no-cache alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty rp-pppoe
+          [ -d /tmp/pppwntargz ] && rm -rf /tmp/pppwntargz
+          mkdir -p /tmp/pppwntargz
+          cd /tmp/pppwntargz
+          wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/x86_64-linux-musl.zip
+          unzip -p x86_64-linux-musl.zip | tar -xzOf - pppwn > pppwn && rm x86_64-linux-musl.zip
+          wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage1.bin
+          wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage2.bin
+          cd /tmp
+          tar -czf pppwn-x86_64.tar.gz pppwntargz/*
+
+      - name: Create pppwn.tar.gz ourselves
+        shell: alpine-aarch64.sh {0}
+        run: |
+          [ -d /tmp/pppwntargz ] && rm -rf /tmp/pppwntargz
+          mkdir -p /tmp/pppwntargz
+          cd /tmp/pppwntargz
+          wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/aarch64-linux-musl.zip
+          unzip -p aarch64-linux-musl.zip | tar -xzOf - pppwn > pppwn && rm aarch64-linux-musl.zip
+          wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage1.bin
+          wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage2.bin
+          cd /tmp
+          tar -czf pppwn-aarch64.tar.gz pppwntargz/*
+
+      - name: Install required packages and prepare environment
+        shell: alpine-x86_64.sh {0}
+        run: |
+          find /tmp -name "pppwn-x86_64.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
-          mkdir -p ~/tmp ~/work/iso
+          mkdir -p ~/tmp ~/work/iso/x86_64
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
           cp ./custom/pppwn.tar.gz aports/scripts/
           chmod +x aports/scripts/*
           # WAR: Fix missing '/lib/libalpine.sh'
           ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
-          echo "Running mkimage.sh script..."
-          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
-      - name: Upload ISO artifact
+      - name: Install required packages and prepare environment
+        shell: alpine-aarch64.sh {0}
+        run: |
+          find /tmp -name "pppwn-aarch64.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
+          echo "permit nopass root" | tee -a /etc/doas.conf
+          abuild-keygen -i -a -n -q
+          apk update
+          mkdir -p ~/tmp ~/work/iso/aarch64
+          export TMPDIR=~/tmp
+          cp -rf custom/* aports/scripts/
+          cp ./custom/pppwn.tar.gz aports/scripts/
+          chmod +x aports/scripts/*
+          # WAR: Fix missing '/lib/libalpine.sh'
+          ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
+
+      - name: Build ISO for x86_64
+        shell: alpine-x86_64.sh {0}
+        run: |
+          echo "Building ISO for x86_64..."
+          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/x86_64 --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+
+      - name: Build ISO for aarch64
+        shell: alpine-aarch64.sh {0}
+        run: |
+          echo "Building ISO for aarch64..."
+          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/aarch64 --arch aarch64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+
+      - name: Upload ISO artifacts for x86_64
         uses: actions/upload-artifact@v4
         with:
-          name: pppwn-live-iso
-          path: ~/work/iso/*.iso
+          name: pppwn-live-x86_64-iso
+          path: |
+            ~/work/iso/x86_64/*.iso
+
+      - name: Upload ISO artifacts for aarch64
+        uses: actions/upload-artifact@v4
+        with:
+          name: pppwn-live-aarch64-iso
+          path: |
+            ~/work/iso/aarch64/*.iso
