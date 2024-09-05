@@ -82,7 +82,7 @@ jobs:
           cd /tmp
           tar -czf pppwn-aarch64.tar.gz pppwntargz/*
 
-      - name: Install required packages and prepare environment
+      - name: Install required packages and prepare environment (x86_64)
         shell: alpine-x86_64.sh --root {0}
         run: |
           find /tmp -name "pppwn-x86_64.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
@@ -92,12 +92,11 @@ jobs:
           mkdir -p ~/tmp ~/work/iso/x86_64
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
-          cp ./custom/pppwn.tar.gz aports/scripts/
           chmod +x aports/scripts/*
           # WAR: Fix missing '/lib/libalpine.sh'
           ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
 
-      - name: Install required packages and prepare environment
+      - name: Install required packages and prepare environment (aarch64)
         shell: alpine-aarch64.sh --root {0}
         run: |
           find /tmp -name "pppwn-aarch64.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
@@ -107,7 +106,6 @@ jobs:
           mkdir -p ~/tmp ~/work/iso/aarch64
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
-          cp ./custom/pppwn.tar.gz aports/scripts/
           chmod +x aports/scripts/*
           # WAR: Fix missing '/lib/libalpine.sh'
           ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
