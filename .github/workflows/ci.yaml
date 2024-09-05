@@ -34,6 +34,7 @@ jobs:
             agetty
             wget
             mtools
+            dosfstools
           shell-name: alpine-x86_64.sh
 
       - name: Setup latest Alpine Linux for aarch64
@@ -117,6 +118,7 @@ jobs:
           echo "Building ISO for x86_64..."
           find /tmp -name "pppwn-x86_64.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/x86_64 --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+          mv ~/work/iso/x86_64/alpine-pppwn-edge-x86_64.iso ~/work/iso/x86_64/pppwn-live-x86_64.iso
 
       - name: Build ISO for aarch64
         shell: alpine-aarch64.sh --root {0}
@@ -124,6 +126,7 @@ jobs:
           echo "Building ISO for aarch64..."
           find /tmp -name "pppwn-aarch64.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/aarch64 --arch aarch64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+          mv ~/work/iso/aarch64/alpine-pppwn-edge-aarch64.iso ~/work/iso/aarch64/pppwn-live-aarch64.iso
 
       - name: Upload ISO artifacts for x86_64
         uses: actions/upload-artifact@v4
