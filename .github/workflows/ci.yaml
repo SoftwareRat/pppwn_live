@@ -22,7 +22,6 @@ jobs:
           packages: |
             alpine-sdk
             alpine-conf
-            syslinux
             xorriso
             squashfs-tools
             grub
@@ -44,7 +43,6 @@ jobs:
           packages: |
             alpine-sdk
             alpine-conf
-            syslinux
             xorriso
             squashfs-tools
             grub
