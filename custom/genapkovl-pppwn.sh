@@ -95,24 +95,28 @@ tar -xzf /etc/pppwn.tar.gz -C /root/
 chmod +x /root/pppwnlive/pppwn
 # Find the first available ethernet interface
 ETH_IF=\$(ip -o link show | awk -F': ' '\$2 ~ /^eth|^en/ {print \$2; exit}')
+# Enable the ethernet interface
+ip link set dev \$ETH_IF up
 
 if [ -n "\$ETH_IF" ]; then
     # Run pppwn command with the detected interface
-    if /root/pppwnlive/pppwn -i "\$ETH_IF" --fw 1100 --stage1 stage1.bin --stage2 stage2.bin -a; then
+    cd /root/pppwnlive
+    if ./pppwn -i "\$ETH_IF" --fw 1100 --stage1 stage1.bin --stage2 stage2.bin -a; then
         echo "PPPwn executed successfully. Shutting down..."
-		sleep 3
+        sleep 3
         poweroff
     else
         echo "PPPwn failed to execute successfully."
         echo "Press 'q' to exit without shutting down, or any other key to shutdown..."
         read -n 1 -s key
-        if [ "$key" = "q" ]; then
+        if [ "\$key" = "q" ]; then
             echo "Exiting without shutdown."
             exit 1
         else
             echo "Shutting down..."
             poweroff
-        fi 
+        fi
+    fi
 else
     echo "No ethernet interface found. Please check your connection."
     echo "Press any key to shutdown..."
@@ -120,7 +124,6 @@ else
     poweroff
 fi
 EOF
-
 # Use /root/.profile to automatically run /etc/setup.sh
 makefile root:root 0644 "$tmp"/etc/.profile <<EOF
 /etc/setup.sh
