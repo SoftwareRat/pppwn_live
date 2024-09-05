@@ -57,7 +57,7 @@ jobs:
           shell-name: alpine-aarch64.sh
 
       - name: Create pppwn.tar.gz (x86_64)
-        shell: alpine-x86_64.sh {0}
+        shell: alpine-x86_64.sh --root {0}
         run: |
           [ -d /tmp/pppwntargz ] && rm -rf /tmp/pppwntargz
           mkdir -p /tmp/pppwntargz
@@ -70,7 +70,7 @@ jobs:
           tar -czf pppwn-x86_64.tar.gz pppwntargz/*
 
       - name: Create pppwn.tar.gz ourselves
-        shell: alpine-aarch64.sh {0}
+        shell: alpine-aarch64.sh --root {0}
         run: |
           [ -d /tmp/pppwntargz ] && rm -rf /tmp/pppwntargz
           mkdir -p /tmp/pppwntargz
@@ -83,7 +83,7 @@ jobs:
           tar -czf pppwn-aarch64.tar.gz pppwntargz/*
 
       - name: Install required packages and prepare environment
-        shell: alpine-x86_64.sh {0}
+        shell: alpine-x86_64.sh --root {0}
         run: |
           find /tmp -name "pppwn-x86_64.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
@@ -98,7 +98,7 @@ jobs:
           ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
 
       - name: Install required packages and prepare environment
-        shell: alpine-aarch64.sh {0}
+        shell: alpine-aarch64.sh --root {0}
         run: |
           find /tmp -name "pppwn-aarch64.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
@@ -113,13 +113,13 @@ jobs:
           ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
 
       - name: Build ISO for x86_64
-        shell: alpine-x86_64.sh {0}
+        shell: alpine-x86_64.sh --root {0}
         run: |
           echo "Building ISO for x86_64..."
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/x86_64 --arch x86_64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
 
       - name: Build ISO for aarch64
-        shell: alpine-aarch64.sh {0}
+        shell: alpine-aarch64.sh --root {0}
         run: |
           echo "Building ISO for aarch64..."
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/aarch64 --arch aarch64 --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
