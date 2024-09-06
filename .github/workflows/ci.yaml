@@ -54,14 +54,14 @@ jobs:
           wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage1.bin
           wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage2.bin
           cd /tmp
-          tar -czf pppwn-${ARCH}.tar.gz pppwntargz/*
+          tar -czf pppwn.tar.gz pppwntargz/*
 
       - name: Install Required Packages
         shell: alpine --root {0}
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
-          find /tmp -name "pppwn-${ARCH}.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
+          find /tmp -name "pppwn.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
@@ -77,7 +77,6 @@ jobs:
           ARCH: ${{ matrix.architecture }}
         run: |
           echo "Building ISO for ${ARCH}..."
-          find /tmp -name "pppwn-${ARCH}.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
           sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
           mv ~/work/iso/${ARCH}/alpine-pppwn-edge-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
 
