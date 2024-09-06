@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Setup Alpine Linux for ${{ matrix.architecture }}
         uses: jirutka/setup-alpine@v1
