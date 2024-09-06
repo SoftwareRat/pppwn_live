@@ -1,0 +1,19 @@
+name: Build pppwn_live ISO images
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-x86_64:
+    uses: ./.github/workflows/build_iso.yml
+    with:
+      architecture: x86_64
+      iso_name: pppwn-live-x86_64.iso
+
+  build-aarch64:
+    uses: ./.github/workflows/build_iso.yml
+    with:
+      architecture: aarch64
+      iso_name: pppwn-live-aarch64.iso
