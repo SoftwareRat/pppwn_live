@@ -14,11 +14,9 @@ jobs:
         architecture: [x86_64, aarch64]
 
     steps:
-      # Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Setup Alpine Linux based on architecture
       - name: Setup Alpine Linux ${{ matrix.architecture }}
         uses: jirutka/setup-alpine@v1
         with:
@@ -42,46 +40,47 @@ jobs:
             dosfstools
           shell-name: alpine-${{ matrix.architecture }}.sh
 
-      # Download and prepare PPPwn binary and assets
-      - name: Prepare PPPwn Binaries for ${{ matrix.architecture }}
+      - name: Prepare PPPwn Binaries
         shell: alpine-${{ matrix.architecture }}.sh --root {0}
+        env:
+          ARCH: ${{ matrix.architecture }}
         run: |
           [ -d /tmp/pppwntargz ] && rm -rf /tmp/pppwntargz
           mkdir -p /tmp/pppwntargz
           cd /tmp/pppwntargz
-          wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/${{ matrix.architecture }}-linux-musl.zip
-          unzip -p ${{ matrix.architecture }}-linux-musl.zip | tar -xzOf - pppwn > pppwn && rm ${{ matrix.architecture }}-linux-musl.zip
+          wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/${ARCH}-linux-musl.zip
+          unzip -p ${ARCH}-linux-musl.zip | tar -xzOf - pppwn > pppwn && rm ${ARCH}-linux-musl.zip
           wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage1.bin
           wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage2.bin
           cd /tmp
-          tar -czf pppwn-${{ matrix.architecture }}.tar.gz pppwntargz/*
+          tar -czf pppwn-${ARCH}.tar.gz pppwntargz/*
 
-      # Install required packages and prepare environment
-      - name: Install Required Packages for ${{ matrix.architecture }}
+      - name: Install Required Packages
         shell: alpine-${{ matrix.architecture }}.sh --root {0}
+        env:
+          ARCH: ${{ matrix.architecture }}
         run: |
-          find /tmp -name "pppwn-${{ matrix.architecture }}.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
+          find /tmp -name "pppwn-${ARCH}.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
-          mkdir -p ~/tmp ~/work/iso/${{ matrix.architecture }}
+          mkdir -p ~/tmp ~/work/iso/${ARCH}
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
           chmod +x aports/scripts/*
-          # WAR: Fix missing '/lib/libalpine.sh'
           ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
 
-      # Build ISO for specific architecture
-      - name: Build ISO for ${{ matrix.architecture }}
+      - name: Build ISO
         shell: alpine-${{ matrix.architecture }}.sh --root {0}
+        env:
+          ARCH: ${{ matrix.architecture }}
         run: |
-          echo "Building ISO for ${{ matrix.architecture }}..."
-          find /tmp -name "pppwn-${{ matrix.architecture }}.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
-          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/${{ matrix.architecture }} --arch ${{ matrix.architecture }} --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-          mv ~/work/iso/${{ matrix.architecture }}/alpine-pppwn-edge-${{ matrix.architecture }}.iso ~/work/iso/${{ matrix.architecture }}/pppwn-live-${{ matrix.architecture }}.iso
+          echo "Building ISO for ${ARCH}..."
+          find /tmp -name "pppwn-${ARCH}.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
+          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+          mv ~/work/iso/${ARCH}/alpine-pppwn-edge-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
 
-      # Upload ISO artifact for architecture
-      - name: Upload ISO Artifact for ${{ matrix.architecture }}
+      - name: Upload ISO Artifact
         uses: actions/upload-artifact@v4
         with:
           name: pppwn-live-${{ matrix.architecture }}-iso
