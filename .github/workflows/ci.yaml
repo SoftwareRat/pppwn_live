@@ -72,7 +72,7 @@ jobs:
           cd /tmp
           tar -czf pppwn-x86_64.tar.gz pppwntargz/*
 
-      - name: Create pppwn.tar.gz ourselves
+      - name: Create pppwn.tar.gz (aarch64)
         shell: alpine-aarch64.sh --root {0}
         run: |
           [ -d /tmp/pppwntargz ] && rm -rf /tmp/pppwntargz
