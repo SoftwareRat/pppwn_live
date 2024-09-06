@@ -19,10 +19,10 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup Alpine Linux for ${{ inputs.architecture }}
+      - name: Setup Alpine Linux for ${{ github.event.inputs.architecture }}
         uses: jirutka/setup-alpine@v1
         with:
-          arch: ${{ inputs.architecture }}
+          arch: ${{ github.event.inputs.architecture }}
           branch: edge
           packages: |
             alpine-sdk
@@ -40,35 +40,35 @@ jobs:
             wget
             mtools
             dosfstools
-          shell-name: alpine-${{ inputs.architecture }}.sh
+          shell-name: alpine-${{ github.event.inputs.architecture }}.sh
 
   create-tar:
     runs-on: ubuntu-latest
     steps:
-      - name: Create pppwn.tar.gz for ${{ inputs.architecture }}
-        shell: alpine-${{ inputs.architecture }}.sh --root {0}
+      - name: Create pppwn.tar.gz for ${{ github.event.inputs.architecture }}
+        shell: alpine-${{ github.event.inputs.architecture }}.sh --root {0}
         run: |
           [ -d /tmp/pppwntargz ] && rm -rf /tmp/pppwntargz
           mkdir -p /tmp/pppwntargz
           cd /tmp/pppwntargz
-          wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/${{ inputs.architecture }}-linux-musl.zip
-          unzip -p ${{ inputs.architecture }}-linux-musl.zip | tar -xzOf - pppwn > pppwn && rm ${{ inputs.architecture }}-linux-musl.zip
+          wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/${{ github.event.inputs.architecture }}-linux-musl.zip
+          unzip -p ${{ github.event.inputs.architecture }}-linux-musl.zip | tar -xzOf - pppwn > pppwn && rm ${{ github.event.inputs.architecture }}-linux-musl.zip
           wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage1.bin
           wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage2.bin
           cd /tmp
-          tar -czf pppwn-${{ inputs.architecture }}.tar.gz pppwntargz/*
+          tar -czf pppwn-${{ github.event.inputs.architecture }}.tar.gz pppwntargz/*
 
   prepare-environment:
     runs-on: ubuntu-latest
     steps:
       - name: Install required packages and prepare environment
-        shell: alpine-${{ inputs.architecture }}.sh --root {0}
+        shell: alpine-${{ github.event.inputs.architecture }}.sh --root {0}
         run: |
-          find /tmp -name "pppwn-${{ inputs.architecture }}.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
+          find /tmp -name "pppwn-${{ github.event.inputs.architecture }}.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
-          mkdir -p ~/tmp ~/work/iso/${{ inputs.architecture }}
+          mkdir -p ~/tmp ~/work/iso/${{ github.event.inputs.architecture }}
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
           chmod +x aports/scripts/*
@@ -77,20 +77,20 @@ jobs:
   build-iso:
     runs-on: ubuntu-latest
     steps:
-      - name: Build ISO for ${{ inputs.architecture }}
-        shell: alpine-${{ inputs.architecture }}.sh --root {0}
+      - name: Build ISO for ${{ github.event.inputs.architecture }}
+        shell: alpine-${{ github.event.inputs.architecture }}.sh --root {0}
         run: |
-          echo "Building ISO for ${{ inputs.architecture }}..."
-          find /tmp -name "pppwn-${{ inputs.architecture }}.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
-          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/${{ inputs.architecture }} --arch ${{ inputs.architecture }} --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-          mv ~/work/iso/${{ inputs.architecture }}/alpine-pppwn-edge-${{ inputs.architecture }}.iso ~/work/iso/${{ inputs.architecture }}/${{ inputs.iso_name }}
+          echo "Building ISO for ${{ github.event.inputs.architecture }}..."
+          find /tmp -name "pppwn-${{ github.event.inputs.architecture }}.tar.gz" -exec cp -rf {} aports/scripts/pppwn.tar.gz \;
+          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/${{ github.event.inputs.architecture }} --arch ${{ github.event.inputs.architecture }} --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
+          mv ~/work/iso/${{ github.event.inputs.architecture }}/alpine-pppwn-edge-${{ github.event.inputs.architecture }}.iso ~/work/iso/${{ github.event.inputs.architecture }}/${{ github.event.inputs.iso_name }}
 
   upload-iso:
     runs-on: ubuntu-latest
     steps:
-      - name: Upload ISO artifacts for ${{ inputs.architecture }}
+      - name: Upload ISO artifacts for ${{ github.event.inputs.architecture }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.iso_name }}
+          name: ${{ github.event.inputs.iso_name }}
           path: |
-            ~/work/iso/${{ inputs.architecture }}/*.iso
+            ~/work/iso/${{ github.event.inputs.architecture }}/*.iso
