@@ -1,4 +1,4 @@
-name: Build the pppwn_live iso images
+name: Build the pppwn_live ISO images
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Alpine Linux ${{ matrix.architecture }}
+      - name: Setup Alpine Linux for ${{ matrix.architecture }}
         uses: jirutka/setup-alpine@v1
         with:
           arch: ${{ matrix.architecture }}
@@ -38,13 +38,14 @@ jobs:
             wget
             mtools
             dosfstools
-          shell-name: alpine-${{ matrix.architecture }}.sh
+          shell-name: alpine
 
       - name: Prepare PPPwn Binaries
-        shell: alpine-${{ matrix.architecture }}.sh --root {0}
+        shell: alpine --root {0}
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
+          echo "ARCH is $ARCH"
           [ -d /tmp/pppwntargz ] && rm -rf /tmp/pppwntargz
           mkdir -p /tmp/pppwntargz
           cd /tmp/pppwntargz
@@ -56,7 +57,7 @@ jobs:
           tar -czf pppwn-${ARCH}.tar.gz pppwntargz/*
 
       - name: Install Required Packages
-        shell: alpine-${{ matrix.architecture }}.sh --root {0}
+        shell: alpine --root {0}
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
@@ -71,7 +72,7 @@ jobs:
           ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
 
       - name: Build ISO
-        shell: alpine-${{ matrix.architecture }}.sh --root {0}
+        shell: alpine --root {0}
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
