@@ -94,7 +94,7 @@ To create the ISO, run the following command from the root of the repository:
 
 ```bash
 sh aports/scripts/mkimage.sh --tag edge --outdir <your desired ISO output path> --arch <your desired architecture> --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-``
+```
 
 Replace `<your desired ISO output path>` and `<your desired architecture>` with appropriate values.
 
