@@ -37,10 +37,11 @@
 
 2. **Create Bootable Media:**
    - For USB: Use [Ventoy](https://www.ventoy.net/en/doc_start.html) (all desktop operating systems), [Rufus](https://rufus.ie/) (Windows) or `dd` (Linux/Mac):
-     
+     ```bash
      sudo dd if=pppwn_live.iso of=/dev/sdX bs=4M
      sync
-     
+     ```
+
      Replace `/dev/sdX` with your USB drive identifier.
 
    - For CD/DVD: Burn the ISO using your preferred software.
@@ -68,22 +69,21 @@ If you'd like to create the ISO yourself, follow these steps:
 
 You'll need an Alpine Linux system with the following packages installed:
 
-
+```bash
 apk add --no-cache alpine-sdk alpine-conf xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
-
+```
 
 ### Preparing the Custom Files
 
 1. Copy the content of the custom folder in this repository to aport/scripts.
 2. Create the pppwn.tar.gz file: This archive should have the following structure:
 
-
+```bash
 tar -ztvf pppwn.tar.gz
 -rwxr-xr-x  0 username group  452780 May 20 00:10 pppwnlive/pppwn
 -rw-r--r--  0 username group     500 Sep  5 15:43 pppwnlive/stage1.bin
 -rw-r--r--  0 username group    2705 Sep  5 15:43 pppwnlive/stage2.bin
-
-
+```
 - `pppwn` is the `pppwn_cpp` binary, which must be downloaded or compiled for your desired architecture.
 - `stage1.bin` and `stage2.bin` are the required payloads, the pre-created ones use GoldHEN which you can download from [B-Dem's PPPwnUI](https://github.com/B-Dem/PPPwnUI/tree/main/PPPwn/goldhen/1100).
 - After creating `pppwn.tar.gz`, copy it to the `custom` folder.
@@ -92,9 +92,9 @@ tar -ztvf pppwn.tar.gz
 
 To create the ISO, run the following command from the root of the repository:
 
-
+```bash
 sh aports/scripts/mkimage.sh --tag edge --outdir <your desired ISO output path> --arch <your desired architecture> --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-
+``
 
 Replace `<your desired ISO output path>` and `<your desired architecture>` with appropriate values.
 
