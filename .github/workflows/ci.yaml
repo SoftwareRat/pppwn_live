@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  discussions: write
+
 jobs:
   build_iso:
     name: Build and Cross-Compile ISO Images
@@ -87,3 +91,46 @@ jobs:
           name: pppwn-live-${{ matrix.architecture }}-iso
           path: |
             ~/work/iso/${{ matrix.architecture }}/*.iso
+
+  create_release:
+    needs: build_iso
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: iso_images
+
+      - name: Calculate SHA256 hashes
+        id: sha256
+        run: |
+          SHA256_X86=$(sha256sum ./iso_images/pppwn-live-x86_64-iso/pppwn-live-x86_64.iso | awk '{print $1}')
+          SHA256_AARCH64=$(sha256sum ./iso_images/pppwn-live-aarch64-iso/pppwn-live-aarch64.iso | awk '{print $1}')
+          echo "sha256_x86=$SHA256_X86" >> $GITHUB_ENV
+          echo "sha256_aarch64=$SHA256_AARCH64" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          body: |
+            SHA256 Checksums:
+            - x86_64: ${{ env.sha256_x86 }}
+            - aarch64: ${{ env.sha256_aarch64 }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets (x86_64)
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./iso_images/pppwn-live-x86_64-iso/pppwn-live-x86_64.iso
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets (aarch64)
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./iso_images/pppwn-live-aarch64-iso/pppwn-live-aarch64.iso
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

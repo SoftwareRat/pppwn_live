@@ -52,7 +52,7 @@ If you'd like to create the ISO yourself, follow these steps:
 You'll need an Alpine Linux system with the following packages installed:
 
 ```bash
-apk add --no-cache alpine-sdk alpine-conf syslinux xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
+apk add --no-cache alpine-sdk alpine-conf xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
 ```
 ### Preparing the Custom Files
 1. Copy the content of the custom folder in this repository to aport/scripts.
