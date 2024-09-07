@@ -106,8 +106,8 @@ jobs:
         run: |
           SHA256_X86=$(sha256sum ./iso_images/pppwn-live-x86_64-iso/pppwn-live-x86_64.iso | awk '{print $1}')
           SHA256_AARCH64=$(sha256sum ./iso_images/pppwn-live-aarch64-iso/pppwn-live-aarch64.iso | awk '{print $1}')
-          echo "sha256_x86=$SHA256_X86" >> $GITHUB_ENV
-          echo "sha256_aarch64=$SHA256_AARCH64" >> $GITHUB_ENV
+          echo "sha256_x86=$SHA256_X86" >> $GITHUB_OUTPUT
+          echo "sha256_aarch64=$SHA256_AARCH64" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -116,21 +116,10 @@ jobs:
           name: Release v${{ github.run_number }}
           body: |
             SHA256 Checksums:
-            - x86_64: ${{ env.sha256_x86 }}
-            - aarch64: ${{ env.sha256_aarch64 }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Assets (x86_64)
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ./iso_images/pppwn-live-x86_64-iso/pppwn-live-x86_64.iso
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Assets (aarch64)
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ./iso_images/pppwn-live-aarch64-iso/pppwn-live-aarch64.iso
+            - x86_64: ${{ steps.sha256.outputs.sha256_x86 }}
+            - aarch64: ${{ steps.sha256.outputs.sha256_aarch64 }}
+          files: |
+            ./iso_images/pppwn-live-x86_64-iso/pppwn-live-x86_64.iso
+            ./iso_images/pppwn-live-aarch64-iso/pppwn-live-aarch64.iso
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
