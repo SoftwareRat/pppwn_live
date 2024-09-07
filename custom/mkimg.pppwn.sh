@@ -19,7 +19,7 @@ profile_pppwn() {
         done
     done
 
-    apks="$apks linux-firmware linux-firmware-none"
+    apks="$apks linux-firmware-none"
 
     case "$ARCH" in
     x86*|amd64)
