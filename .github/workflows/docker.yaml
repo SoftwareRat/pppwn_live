@@ -5,8 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'Dockerfile'
-      - '**/Dockerfile'
+      - 'docker/Dockerfile'
       - '.github/workflows/docker.yaml'
 
 jobs:
@@ -51,3 +50,20 @@ jobs:
     - name: Push Docker image
       run: |
         docker push softwarerat/pppwn_live:${{ matrix.arch }}
+
+  create-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: softwarerat
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+    - name: Create and push multi-arch manifest
+      run: |
+        docker manifest create softwarerat/pppwn_live:latest \
+          softwarerat/pppwn_live:x86_64 \
+          softwarerat/pppwn_live:aarch64
+        docker manifest push softwarerat/pppwn_live:latest
