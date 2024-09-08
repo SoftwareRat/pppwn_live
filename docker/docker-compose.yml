@@ -1,9 +1,9 @@
 version: '3'
+
 services:
   pppwn:
-    build:
-      context: .
-      args:
-        FIRMWARE_VERSION: 1100
+    image: softwarerat/pppwn_live:latest
+    environment:
+      - FIRMWARE_VERSION=1000
     network_mode: host
     restart: unless-stopped

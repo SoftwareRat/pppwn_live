@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# Firmware version passed as argument or default to 1100
-FIRMWARE_VERSION=${1:-1100}
+# Read firmware version from environment variable or default to 1100
+FIRMWARE_VERSION=${FIRMWARE_VERSION:-1100}
+
+# Print firmware version for debugging
+echo "Using firmware version: $FIRMWARE_VERSION"
 
 # Download the firmware binaries
 echo "Downloading firmware binaries for version $FIRMWARE_VERSION..."

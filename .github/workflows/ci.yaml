@@ -121,6 +121,7 @@ jobs:
 
             Changelog:
               ${{ github.event.head_commit.message }}
+          
             SHA256 Checksums:
               - x86_64: `${{ steps.sha256.outputs.sha256_x86 }}`
               - aarch64: `${{ steps.sha256.outputs.sha256_aarch64 }}`
