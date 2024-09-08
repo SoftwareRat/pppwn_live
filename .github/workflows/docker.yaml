@@ -36,7 +36,12 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker buildx build --platform linux/${{ matrix.arch }} -f docker/Dockerfile -t softwarerat/pppwn_live:${{ matrix.arch }} docker/
+        docker buildx build --platform linux/${{ matrix.arch }} -f docker/Dockerfile -t softwarerat/pppwn_live:${{ matrix.arch }} docker/ --load
+
+    - name: Inspect Docker image
+      run: |
+        docker image ls
+
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
