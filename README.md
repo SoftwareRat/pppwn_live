@@ -74,17 +74,9 @@
 
 1. **Pull the Docker Image:**
    Get the latest Docker image from [Docker Hub](https://hub.docker.com/r/softwarerat/pppwn_live/tags):
-
-   For x86_64 architecture:
    ```bash
-   docker pull softwarerat/pppwn_live:x86_64
+   docker pull softwarerat/pppwn_live:latest
    ```
-
-   For aarch64 architecture:
-   ```bash
-   docker pull softwarerat/pppwn_live:aarch64
-   ```
-   
 
 2. **Run the Docker Container:**
    Start the container with the desired firmware version using the `FIRMWARE_VERSION` environment variable:
@@ -99,26 +91,13 @@
 #### Docker Compose
 
 1. **Use the Existing `docker-compose.yml` File:**
-   The `docker-compose.yml` file is located in the `docker` folder of the repository. Use the following configuration for the x86_64 architecture:
+   The `docker-compose.yml` file is located in the `docker` folder of the repository. Use the following configuration:
    ```yaml
    version: '3'
 
    services:
      pppwn:
-       image: softwarerat/pppwn_live:x86_64
-       environment:
-         - FIRMWARE_VERSION=1100
-       network_mode: host
-       restart: unless-stopped
-   ```
-
-   or for the aarch64 architecture:
-   ```yaml
-   version: '3'
-
-   services:
-     pppwn:
-       image: softwarerat/pppwn_live:aaarch64
+       image: softwarerat/pppwn_live:latest
        environment:
          - FIRMWARE_VERSION=1100
        network_mode: host
@@ -137,13 +116,13 @@
 1. **Use the Existing `Dockerfile`:**
    The `Dockerfile` is located in the `docker` folder of the repository. If you need to build the Docker image manually, use the following command from the root of the repository:
    ```bash
-   docker build -f docker/Dockerfile -t pppwn_live .
+   docker build -f docker/Dockerfile -t pppwn_image .
    ```
 
 2. **Run the Docker Container:**
    Use the following command to start the container:
    ```bash
-   docker run --rm -e FIRMWARE_VERSION=1100 --network host pppwn_live
+   docker run --rm -e FIRMWARE_VERSION=1100 --network host pppwn_image
    ```
    Replace `1100` with the firmware version you need.
 
