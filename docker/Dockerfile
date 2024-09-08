@@ -9,6 +9,7 @@ RUN apk add --no-cache bash wget curl unzip tar && \
     if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "aarch64" ] && [ "$ARCH" != "mipsel" ]; then \
         echo "Unsupported architecture: $ARCH" && exit 1; \
     fi && \
+    mkdir -p /opt/pppwn && \
     echo "Downloading ${ARCH}-linux-musl.zip..." && \
     wget -q https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/${ARCH}-linux-musl.zip && \
     if [ ! -f "${ARCH}-linux-musl.zip" ]; then \
