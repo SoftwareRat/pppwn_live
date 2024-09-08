@@ -8,7 +8,6 @@ profile_pppwn() {
         Designed to run the PPPwn jailbreak.
         For the PlayStation 4"
     kernel_cmdline="unionfs_size=512M console=tty0 console=ttyS0,115200"
-    syslinux_serial="0 115200"
     boot_addons=""
     apks="alpine-base busybox openrc bash agetty"
     local _k _a
@@ -25,6 +24,8 @@ profile_pppwn() {
     x86*|amd64)
         boot_addons="amd-ucode intel-ucode"
         initrd_ucode="/boot/amd-ucode.img /boot/intel-ucode.img"
+        syslinux_serial="0 115200"
+        apks="$apks syslinux"
         ;;
     esac
 

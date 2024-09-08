@@ -1,0 +1,12 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      args:
+        - FIRMWARE_VERSION=${FIRMWARE_VERSION:-1100}
+        - ARCH=${ARCH:-x86_64}
+    environment:
+      - FIRMWARE_VERSION=${FIRMWARE_VERSION:-1100}
+      - ARCH=${ARCH:-x86_64}
+    network_mode: host
