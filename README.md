@@ -33,7 +33,10 @@
 - USB drive or CD/DVD for bootable media
 - Ethernet cable and port on the PC running PPPwnLive 
 - Basic knowledge of booting from external media
-- PlayStation 4 console running **firmware version 11.00** only
+- If using Docker:
+   - PlayStation 4 console running **firmware versions 9.00, 9.60, 10.00, 10.01, or 11.00**
+- If using live ISO:
+   - PlayStation 4 console running **firmware version 11.00** only
 
 ## Usage
 
