@@ -6,6 +6,11 @@
 - [Features](#features)
 - [Requirements](#requirements)
 - [Usage](#usage)
+  - [ISO Usage](#iso-usage)
+  - [Docker Usage](#docker-usage)
+    - [Docker CLI](#docker-cli)
+    - [Docker Compose](#docker-compose)
+    - [Building Docker Images Manually](#building-docker-images-manually)
 - [Screenshots](#screenshots)
 - [Development](#development)
   - [Prerequisites](#prerequisites)
@@ -32,11 +37,13 @@
 
 ## Usage
 
+### ISO Usage
+
 1. **Download the ISO:**
    Get the latest ISO from the [releases page](https://github.com/SoftwareRat/pppwn_live/releases). Choose the x64 version for Intel/AMD processors or the aarch64 version for ARM-based processors, depending on your PC architecture.
 
 2. **Create Bootable Media:**
-   - For USB: Use [Ventoy](https://www.ventoy.net/en/doc_start.html) (all desktop operating systems), [Rufus](https://rufus.ie/) (Windows) or `dd` (Linux/Mac):
+   - For USB: Use [Ventoy](https://www.ventoy.net/en/doc_start.html) (all desktop operating systems), [Rufus](https://rufus.ie/) (Windows), or `dd` (Linux/Mac):
      ```bash
      sudo dd if=pppwn_live.iso of=/dev/sdX bs=4M
      sync
@@ -58,6 +65,64 @@
 5. **Automatic Shutdown:**
    The system will shut down automatically after completing its tasks.
 
+### Docker Usage
+
+#### Docker CLI
+
+1. **Pull the Docker Image:**
+   Get the latest Docker image from [Docker Hub](https://hub.docker.com/r/softwarerat/pppwn_live/tags):
+   ```bash
+   docker pull softwarerat/pppwn_live:latest
+   ```
+
+2. **Run the Docker Container:**
+   Start the container with the desired firmware version using the `FIRMWARE_VERSION` environment variable:
+   ```bash
+   docker run --rm -e FIRMWARE_VERSION=1100 --network host softwarerat/pppwn_live
+   ```
+   Replace `1100` with the firmware version you need.
+
+3. **Automatic Shutdown:**
+   The container will run `pppwn_cpp` and automatically shut down after completing its tasks.
+
+#### Docker Compose
+
+1. **Use the Existing `docker-compose.yml` File:**
+   The `docker-compose.yml` file is located in the `docker` folder of the repository. Use the following configuration:
+   ```yaml
+   version: '3'
+
+   services:
+     pppwn:
+       image: softwarerat/pppwn_live:latest
+       environment:
+         - FIRMWARE_VERSION=1100
+       network_mode: host
+       restart: unless-stopped
+   ```
+
+2. **Start the Docker Compose Service:**
+   Run the following command from the root of the repository:
+   ```bash
+   docker-compose -f docker/docker-compose.yml up
+   ```
+   Replace `1100` with the firmware version you need. The service will automatically shut down after completing its tasks.
+
+#### Building Docker Images Manually
+
+1. **Use the Existing `Dockerfile`:**
+   The `Dockerfile` is located in the `docker` folder of the repository. If you need to build the Docker image manually, use the following command from the root of the repository:
+   ```bash
+   docker build -f docker/Dockerfile -t pppwn_image .
+   ```
+
+2. **Run the Docker Container:**
+   Use the following command to start the container:
+   ```bash
+   docker run --rm -e FIRMWARE_VERSION=1100 --network host pppwn_image
+   ```
+   Replace `1100` with the firmware version you need.
+
 ## Screenshots
 ![Screenshot of PPPwnLive ISO booted, showing a terminal interface with system information and instructions](images/screenshot.png)
 
@@ -76,7 +141,7 @@ apk add --no-cache alpine-sdk alpine-conf xorriso squashfs-tools grub grub-efi d
 ### Preparing the Custom Files
 
 1. Copy the content of the custom folder in this repository to aport/scripts.
-2. Create the pppwn.tar.gz file: This archive should have the following structure:
+2. Create the `pppwn.tar.gz` file: This archive should have the following structure:
 
 ```bash
 tar -ztvf pppwn.tar.gz
