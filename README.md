@@ -143,7 +143,7 @@ apk add --no-cache alpine-sdk alpine-conf xorriso squashfs-tools grub grub-efi d
 
 ### Preparing the Custom Files
 
-1. Copy the content of the custom folder in this repository to aport/scripts.
+1. Copy the content of the custom folder in this repository to `aports/scripts`.
 2. Create the `pppwn.tar.gz` file: This archive should have the following structure:
 
 ```bash
@@ -154,7 +154,7 @@ tar -ztvf pppwn.tar.gz
 ```
 - `pppwn` is the `pppwn_cpp` binary, which must be downloaded or compiled for your desired architecture.
 - `stage1.bin` and `stage2.bin` are the required payloads, the pre-created ones use GoldHEN which you can download from [B-Dem's PPPwnUI](https://github.com/B-Dem/PPPwnUI/tree/main/PPPwn/goldhen/1100).
-- After creating `pppwn.tar.gz`, copy it to the `custom` folder.
+- After creating `pppwn.tar.gz`, copy it to the `aports/scripts` folder.
 
 ### Build the ISO
 
