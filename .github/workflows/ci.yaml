@@ -15,7 +15,7 @@ permissions:
 jobs:
   build_iso:
     name: Build and Cross-Compile ISO Images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         architecture: [x86_64, aarch64]
@@ -50,8 +50,6 @@ jobs:
             curl
             jq
             7zip
-            linux-firmware
-            linux-firmware-brcm
           shell-name: alpine
 
       - name: Prepare PPPwn binaries
