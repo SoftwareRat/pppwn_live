@@ -15,7 +15,7 @@ permissions:
 jobs:
   build_iso:
     name: Build and Cross-Compile ISO Images
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         architecture: [x86_64, aarch64]
@@ -47,9 +47,6 @@ jobs:
             wget
             mtools
             dosfstools
-            curl
-            jq
-            7zip
           shell-name: alpine
 
       - name: Prepare PPPwn binaries
@@ -63,11 +60,7 @@ jobs:
           wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/${ARCH}-linux-musl.zip
           unzip -p ${ARCH}-linux-musl.zip | tar -xzOf - pppwn > pppwn && rm ${ARCH}-linux-musl.zip
           wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage1.bin
-          curl -L -o GoldHEN.7z $(curl -s https://api.github.com/repos/GoldHEN/GoldHEN/releases | jq -r '.[0].assets[0].browser_download_url')
-          7zz e GoldHEN.7z pppnw_stage2/stage2_v*.7z -r -aoa
-          7zz e stage2_v*.7z stage2_11.00.bin -r -aoa
-          mv stage2_11.00.bin stage2.bin
-          rm GoldHEN.7z stage2_v*.7z
+          wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage2.bin
           cd /tmp
           tar -czf pppwn.tar.gz pppwnlive/*
 
@@ -128,7 +121,7 @@ jobs:
 
             Changelog:
               ${{ github.event.head_commit.message }}
-
+          
             SHA256 Checksums:
               - x86_64: `${{ steps.sha256.outputs.sha256_x86 }}`
               - aarch64: `${{ steps.sha256.outputs.sha256_aarch64 }}`
