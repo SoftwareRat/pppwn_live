@@ -47,6 +47,9 @@ jobs:
             wget
             mtools
             dosfstools
+            curl
+            jq
+            7zip
           shell-name: alpine
 
       - name: Prepare PPPwn binaries
