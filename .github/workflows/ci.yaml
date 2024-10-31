@@ -50,6 +50,8 @@ jobs:
             curl
             jq
             7zip
+            linux-firmware
+            linux-firmware-brcm
           shell-name: alpine
 
       - name: Prepare PPPwn binaries
