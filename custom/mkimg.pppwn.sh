@@ -27,7 +27,7 @@ profile_pppwn() {
         apks="$apks syslinux isolinux"
 
         # Disable unnecessary architectural features
-        kernel_cmdline=" $kernel_cmdline idle=nomwait processor.max_cstate=1"
+        kernel_cmdline="$kernel_cmdline idle=nomwait processor.max_cstate=1"
         ;;
     esac
 
