@@ -98,7 +98,12 @@ jobs:
           echo "Building ISO for ${ARCH}..."
           sh aports/scripts/mkimage.sh --tag stable --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/latest-stable/main --profile pppwn > /var/log/mkimage.log 2>&1 \
           || (cat /var/log/mkimage.log || echo "No log found"; exit 1)
-          mv ~/work/iso/${ARCH}/alpine-stable-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
+          ISO_PATH=$(find ~/work/iso/${ARCH} -name "alpine-*.iso" -print -quit)
+          if [ -z "$ISO_PATH" ]; then
+            echo "ISO not found!"
+            exit 1
+          fi
+          mv "$ISO_PATH" ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
