@@ -73,8 +73,8 @@ jobs:
           find /tmp -name "pppwn.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
-          cat /etc/apk/repositories
-          ping -c 3 dl-cdn.alpinelinux.org
+          echo "http://dl-2.alpinelinux.org/alpine/latest-stable/main" > /etc/apk/repositories
+          echo "http://dl-2.alpinelinux.org/alpine/latest-stable/community" >> /etc/apk/repositories
           for i in 1 2 3; do apk update && break || sleep 5; done
           mkdir -p ~/tmp ~/work/iso/${ARCH}
           export TMPDIR=~/tmp
