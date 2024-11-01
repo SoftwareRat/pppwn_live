@@ -1,35 +1,9 @@
 #!/bin/sh
 set -eu
-set -o pipefail
 
 # Hyper-Minimal PPPwn Live Environment Generator
-readonly HOSTNAME="${HOSTNAME:-PPPwnLive}"
-readonly UMASK=022
-
-# Required commands
-readonly REQUIRED_COMMANDS="tar gzip mktemp mkdir chown chmod ln"
-
-# Minimal, statically defined directories
-readonly DIRS=(
-    "etc/runlevels/sysinit"
-    "etc/runlevels/boot"
-    "etc/network"
-    "etc/init.d"
-    "root/pppwnlive"
-)
-
-# Service dependencies with their runlevels
-readonly SERVICES=(
-    "devfs:sysinit"
-    "dmesg:sysinit"
-    "mdev:sysinit"
-    "hwdrivers:sysinit"
-    "hwclock:boot"
-    "modules:boot"
-    "sysctl:boot"
-    "hostname:boot"
-    "bootmisc:boot"
-)
+HOSTNAME="${HOSTNAME:-PPPwnLive}"
+UMASK=022
 
 # Error handling
 die() {
@@ -44,14 +18,6 @@ cleanup() {
     fi
 }
 
-# Check for required commands
-check_requirements() {
-    local cmd
-    for cmd in $REQUIRED_COMMANDS; do
-        command -v "$cmd" >/dev/null 2>&1 || die "Required command '$cmd' not found"
-    done
-}
-
 # Create file with proper permissions
 mkfile() {
     local path="$1" owner="${2:-root:root}" perms="${3:-0644}"
@@ -61,23 +27,22 @@ mkfile() {
     chmod "$perms" "$path" || die "Failed to set permissions for $path"
 }
 
+# Main script
 main() {
     # Set secure umask
     umask "$UMASK"
-
-    # Check requirements
-    check_requirements
 
     # Create temporary directory
     tmp="$(mktemp -d)" || die "Failed to create temporary directory"
     trap cleanup EXIT
     cd "$tmp" || die "Failed to change to temporary directory"
 
-    # Create directory structure
-    local dir
-    for dir in "${DIRS[@]}"; do
-        mkdir -p "$tmp/$dir" || die "Failed to create directory $dir"
-    done
+    # Create directory structure (without arrays)
+    mkdir -p "$tmp/etc/runlevels/sysinit" || die "Failed to create sysinit directory"
+    mkdir -p "$tmp/etc/runlevels/boot" || die "Failed to create boot directory"
+    mkdir -p "$tmp/etc/network" || die "Failed to create network directory"
+    mkdir -p "$tmp/etc/init.d" || die "Failed to create init.d directory"
+    mkdir -p "$tmp/root/pppwnlive" || die "Failed to create pppwnlive directory"
 
     # Create base configuration files
     echo "$HOSTNAME" | mkfile "$tmp/etc/hostname"
@@ -165,20 +130,26 @@ start() {
 }
 EOF
 
-    # Create runlevel directories
-    mkdir -p "$tmp/etc/runlevels/default" || die "Failed to create runlevel directory"
+    # Create runlevel directories and symlinks
+    mkdir -p "$tmp/etc/runlevels/default" || die "Failed to create default runlevel directory"
 
-    # Create service symlinks
-    ln -sf /etc/init.d/pppwn-setup "$tmp/etc/runlevels/boot/pppwn-setup" || die "Failed to create service symlink"
-    ln -sf /etc/init.d/pppwn-launcher "$tmp/etc/runlevels/default/pppwn-launcher" || die "Failed to create service symlink"
+    # Setup service symlinks
+    ln -sf /etc/init.d/pppwn-setup "$tmp/etc/runlevels/boot/pppwn-setup" || die "Failed to create pppwn-setup symlink"
+    ln -sf /etc/init.d/pppwn-launcher "$tmp/etc/runlevels/default/pppwn-launcher" || die "Failed to create pppwn-launcher symlink"
 
-    # Setup service dependencies
-    local service name level
-    for service in "${SERVICES[@]}"; do
-        IFS=: read -r name level <<< "$service"
-        mkdir -p "$tmp/etc/runlevels/$level" || die "Failed to create runlevel directory for $service"
-        ln -sf "/etc/init.d/$name" "$tmp/etc/runlevels/$level/$name" || die "Failed to create service symlink for $service"
-    done
+    # Setup service dependencies (without arrays)
+    mkdir -p "$tmp/etc/runlevels/sysinit"
+    ln -sf /etc/init.d/devfs "$tmp/etc/runlevels/sysinit/devfs"
+    ln -sf /etc/init.d/dmesg "$tmp/etc/runlevels/sysinit/dmesg"
+    ln -sf /etc/init.d/mdev "$tmp/etc/runlevels/sysinit/mdev"
+    ln -sf /etc/init.d/hwdrivers "$tmp/etc/runlevels/sysinit/hwdrivers"
+
+    mkdir -p "$tmp/etc/runlevels/boot"
+    ln -sf /etc/init.d/hwclock "$tmp/etc/runlevels/boot/hwclock"
+    ln -sf /etc/init.d/modules "$tmp/etc/runlevels/boot/modules"
+    ln -sf /etc/init.d/sysctl "$tmp/etc/runlevels/boot/sysctl"
+    ln -sf /etc/init.d/hostname "$tmp/etc/runlevels/boot/hostname"
+    ln -sf /etc/init.d/bootmisc "$tmp/etc/runlevels/boot/bootmisc"
 
     # Create final archive
     tar -c -C "$tmp" etc | gzip -9n > "${HOSTNAME}.apkovl.tar.gz" || die "Failed to create final archive"
