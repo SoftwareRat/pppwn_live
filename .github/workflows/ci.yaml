@@ -78,7 +78,7 @@ jobs:
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
           chmod +x aports/scripts/*
-          ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
+          [ ! -e /lib/libalpine.sh ] && ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
 
       - name: Build ISO
         shell: alpine --root {0}
