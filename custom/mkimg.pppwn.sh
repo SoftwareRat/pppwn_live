@@ -1,13 +1,25 @@
 #!/bin/sh
 
+# Add this function to handle kernel module compression
 generate_modloop() {
     local kernel_ver="$1"
     local modloop="$2"
 
+    # Create a temporary directory for modules
     mkdir -p /tmp/modloop
+
+    # Copy modules to the temporary directory
     cp -a /lib/modules/${kernel_ver} /tmp/modloop/
+
+    # Compress modules using xz with maximum compression
     cd /tmp/modloop
-    tar -cJf "$modloop" lib/modules/${kernel_ver}
+    if ! tar -cJf "$modloop" lib/modules/${kernel_ver}; then
+        echo "Error: Failed to create modloop tarball"
+        ls -l /tmp/modloop
+        exit 1
+    fi
+
+    # Clean up
     rm -rf /tmp/modloop
 }
 
@@ -38,7 +50,7 @@ profile_pppwn() {
         kernel_cmdline="$kernel_cmdline idle=nomwait processor.max_cstate=1"
         ;;
     aarch64)
-        # ARM64 specific packages and settings
+        apks="$apks u-boot-tools atf-allwinner"
         ;;
     esac
 
