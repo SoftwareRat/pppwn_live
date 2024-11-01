@@ -31,7 +31,7 @@ jobs:
         uses: jirutka/setup-alpine@v1
         with:
           arch: ${{ matrix.architecture }}
-          branch: edge
+          branch: latest-stable
           packages: |
             alpine-sdk
             alpine-conf
