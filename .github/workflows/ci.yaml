@@ -26,11 +26,11 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup Alpine Linux for ${{ matrix.architecture }}
-        uses: jirutka/setup-alpine@v1
+      - name: Set up Alpine Linux environment
+        uses: jirutka/setup-alpine@v1.2.0
         with:
           arch: ${{ matrix.architecture }}
-          branch: edge
+          branch: latest-stable
           packages: |
             alpine-sdk
             alpine-conf
@@ -47,6 +47,9 @@ jobs:
             wget
             mtools
             dosfstools
+            7zip
+            curl
+            jq
           shell-name: alpine
 
       - name: Prepare PPPwn binaries
@@ -54,48 +57,68 @@ jobs:
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
-          echo "ARCH is $ARCH"
+          set -e
+          echo "Preparing PPPwn binaries for ${ARCH}..."
           mkdir -p /tmp/pppwnlive
           cd /tmp/pppwnlive
-          wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/${ARCH}-linux-musl.zip
+
+          # Download and extract binaries with retries
+          for attempt in {1..3}; do
+            wget https://github.com/xfangfang/PPPwn_cpp/releases/latest/download/${ARCH}-linux-musl.zip && break || sleep 5
+          done
           unzip -p ${ARCH}-linux-musl.zip | tar -xzOf - pppwn > pppwn && rm ${ARCH}-linux-musl.zip
+
           wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage1.bin
-          wget https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage2.bin
+          curl -L -o GoldHEN.7z $(curl -s https://api.github.com/repos/GoldHEN/GoldHEN/releases | jq -r '.[0].assets[0].browser_download_url')
+          7zz e GoldHEN.7z pppnw_stage2/stage2_v*.7z -r -aoa
+          7zz e stage2_v*.7z stage2_11.00.bin -r -aoa
+          mv stage2_11.00.bin stage2.bin
+          rm GoldHEN.7z stage2_v*.7z
           cd /tmp
           tar -czf pppwn.tar.gz pppwnlive/*
 
-      - name: Install required packages
+      - name: Install required packages and setup environment
         shell: alpine --root {0}
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
+          set -e
+          echo "Installing required packages and setting up environment for ${ARCH}..."
           find /tmp -name "pppwn.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
-          echo "permit nopass root" | tee -a /etc/doas.conf
+          echo "permit nopass root" > /etc/doas.conf
           abuild-keygen -i -a -n -q
-          apk update
+
+          echo "http://dl-2.alpinelinux.org/alpine/latest-stable/main" > /etc/apk/repositories
+          for i in {1..3}; do apk update && break || sleep 5; done
           mkdir -p ~/tmp ~/work/iso/${ARCH}
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
           chmod +x aports/scripts/*
-          ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
 
       - name: Build ISO
         shell: alpine --root {0}
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
+          set -e
           echo "Building ISO for ${ARCH}..."
-          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-          mv ~/work/iso/${ARCH}/alpine-pppwn-edge-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
+          sh aports/scripts/mkimage.sh --tag stable --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/latest-stable/main --profile pppwn > /var/log/mkimage.log 2>&1 \
+          || (cat /var/log/mkimage.log || echo "No log found"; exit 1)
+          ISO_PATH=$(find ~/work/iso/${ARCH} -name "alpine-*.iso" -print -quit)
+          if [ -z "$ISO_PATH" ]; then
+            echo "ISO not found!"
+            exit 1
+          fi
+          mv "$ISO_PATH" ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
           name: pppwn-live-${{ matrix.architecture }}-iso
-          path: |
-            ~/work/iso/${{ matrix.architecture }}/*.iso
+          path: ~/work/iso/${{ matrix.architecture }}/*.iso
 
   create_release:
+    if: github.ref == 'refs/heads/main'
     needs: build_iso
     runs-on: ubuntu-latest
     steps:
@@ -107,6 +130,7 @@ jobs:
       - name: Calculate SHA256 hashes
         id: sha256
         run: |
+          echo "Calculating SHA256 checksums for each architecture..."
           SHA256_X86=$(sha256sum ./iso_images/pppwn-live-x86_64-iso/pppwn-live-x86_64.iso | awk '{print $1}')
           SHA256_AARCH64=$(sha256sum ./iso_images/pppwn-live-aarch64-iso/pppwn-live-aarch64.iso | awk '{print $1}')
           echo "sha256_x86=$SHA256_X86" >> $GITHUB_OUTPUT
@@ -121,7 +145,7 @@ jobs:
 
             Changelog:
               ${{ github.event.head_commit.message }}
-          
+
             SHA256 Checksums:
               - x86_64: `${{ steps.sha256.outputs.sha256_x86 }}`
               - aarch64: `${{ steps.sha256.outputs.sha256_aarch64 }}`
