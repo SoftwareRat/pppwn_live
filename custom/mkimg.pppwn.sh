@@ -1,33 +1,26 @@
 #!/bin/sh
 
-# Add this function to handle kernel module compression
 generate_modloop() {
     local kernel_ver="$1"
     local modloop="$2"
 
-    # Create a temporary directory for modules
     mkdir -p /tmp/modloop
-
-    # Copy modules to the temporary directory
     cp -a /lib/modules/${kernel_ver} /tmp/modloop/
-
-    # Compress modules using xz with maximum compression
     cd /tmp/modloop
     tar -cJf "$modloop" lib/modules/${kernel_ver}
-
-    # Clean up
     rm -rf /tmp/modloop
 }
 
 profile_pppwn() {
     profile_standard
+    profile_abbrev="pppwn"
     kernel_cmdline="unionfs_size=128M console=tty0 console=ttyS0,115200 quiet loglevel=0 rd.systemd.show_status=auto rd.plymouth=0 plymouth.enable=0 mitigations=off nowatchdog nospectre_v2"
     title="Nano"
     desc="Hyper-minimal profile for PS4 PPPwn jailbreak
           Absolute bare-metal footprint, optimized for single-purpose exploit"
-    apks="alpine-base busybox openrc bash"
+    apks="alpine-base busybox openrc bash agetty"
+    boot_addons=""
 
-    # Dynamic kernel package selection with minimal footprint
     local _k _a
     for _k in $kernel_flavors; do
         apks="$apks linux-$_k linux-firmware-none"
@@ -36,43 +29,33 @@ profile_pppwn() {
         done
     done
 
-    # Architecture-specific optimization
     case "$ARCH" in
     x86*|amd64)
-        # Minimal microcode, serial console, and bootloader
         boot_addons="minimal-ucode"
         initrd_ucode="/boot/minimal-ucode.img"
         syslinux_serial="0 115200"
         apks="$apks syslinux isolinux"
-
-        # Disable unnecessary architectural features
         kernel_cmdline="$kernel_cmdline idle=nomwait processor.max_cstate=1"
+        ;;
+    aarch64)
+        # ARM64 specific packages and settings
         ;;
     esac
 
-    # Custom overlay for PPPwn-specific configuration
     apkovl="aports/scripts/genapkovl-pppwn.sh"
-
-    # Network and system optimization
-    # Removed all unnecessary network packages
     apks="$apks --no-cache"
 
-    # Post-build optimization hook
     post_build() {
-        # Remove unnecessary documentation and localization
         rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/*
         find / -type f -name "*.a" -delete
         find / -type f -name "*.la" -delete
 
-        # Generate modloop with explicit compression
         local kernel_ver=$(ls /lib/modules | head -n1)
         generate_modloop "$kernel_ver" "/boot/modloop-lts"
     }
 }
 
-# Strict package filtering function
 filter_packages() {
-    # Aggressive package removal for minimal footprint
     local keep_packages="
         alpine-base
         busybox
@@ -89,21 +72,13 @@ filter_packages() {
     done
 }
 
-# Custom initramfs generator for minimal boot
 generate_minimal_initramfs() {
     local kernel_version="$1"
-
-    # Create a bare-minimum initramfs
     mkdir -p /tmp/initramfs/{bin,dev,etc,lib,proc,sys}
-
-    # Copy only essential binaries
     cp /bin/busybox /tmp/initramfs/bin/
-
-    # Create minimal set of device nodes
     mknod -m 666 /tmp/initramfs/dev/null c 1 3
     mknod -m 666 /tmp/initramfs/dev/zero c 1 5
 
-    # Generate init script
     cat > /tmp/initramfs/init << 'EOF'
 #!/bin/busybox sh
 mount -t proc none /proc
@@ -111,8 +86,6 @@ mount -t sysfs none /sys
 exec /bin/sh
 EOF
     chmod +x /tmp/initramfs/init
-
-    # Create the initramfs
     cd /tmp/initramfs
     find . | cpio -H newc -o | gzip > "/boot/initramfs-${kernel_version}"
 }
