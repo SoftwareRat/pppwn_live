@@ -1,25 +1,19 @@
 #!/bin/sh
 
 profile_pppwn() {
-    profile_standard
     profile_abbrev="pppwn"
-    title="Extended"
-    desc="Contains only the minimal.
-        Designed to run the PPPwn jailbreak.
-        For the PlayStation 4"
-    kernel_cmdline="unionfs_size=512M console=tty0 console=ttyS0,115200"
-    boot_addons=""
+    title="PPPwn"
+    desc="Minimal ISO for PPPwn jailbreak on PlayStation 4"
+
+    # Kernel configuration
+    kernel_flavors="lts"
+    kernel_cmdline="console=tty0 console=ttyS0,115200 quiet"
+
+    # Minimal package selection
     apks="alpine-base busybox openrc bash agetty"
-    local _k _a
-    for _k in $kernel_flavors; do
-        apks="$apks linux-$_k"
-        for _a in $kernel_addons; do
-            apks="$apks $_a-$_k"
-        done
-    done
+    apks="$apks linux-$kernel_flavors linux-firmware-none"
 
-    apks="$apks linux-firmware-none"
-
+    # Architecture-specific configurations
     case "$ARCH" in
     x86*|amd64)
         boot_addons="amd-ucode intel-ucode"
@@ -29,5 +23,15 @@ profile_pppwn() {
         ;;
     esac
 
-    apkovl="aports/scripts/genapkovl-pppwn.sh"
+    # Custom overlay for PPPwn-specific configurations
+    apkovl="genapkovl-pppwn.sh"
+
+    # Disable unnecessary services
+    local _service
+    for _service in hwdrivers bootmisc hostname syslog; do
+        rc_add local $_service boot
+    done
+
+    # Enable required services
+    rc_add local pppoe boot
 }

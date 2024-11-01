@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - LLA
     paths:
       - '.github/workflows/ci.yaml'
       - 'custom/**'
@@ -85,8 +86,8 @@ jobs:
           ARCH: ${{ matrix.architecture }}
         run: |
           echo "Building ISO for ${ARCH}..."
-          sh aports/scripts/mkimage.sh --tag edge --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-          mv ~/work/iso/${ARCH}/alpine-pppwn-edge-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
+          sh aports/scripts/mkimage.sh --tag stable --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/latest-stable/main --profile pppwn
+          mv ~/work/iso/${ARCH}/alpine-pppwn-stable-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
@@ -121,7 +122,7 @@ jobs:
 
             Changelog:
               ${{ github.event.head_commit.message }}
-          
+
             SHA256 Checksums:
               - x86_64: `${{ steps.sha256.outputs.sha256_x86 }}`
               - aarch64: `${{ steps.sha256.outputs.sha256_aarch64 }}`
