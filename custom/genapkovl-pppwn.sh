@@ -137,19 +137,4 @@ for service in "${SERVICES[@]}"; do
     ln -sf "/etc/init.d/$name" "$tmp/etc/runlevels/$level/$name"
 done
 
-# Attempt to gzip the file and handle errors
-gzip -c "$tmp/etc/pppwn.tar.gz" > "$tmp/etc/pppwn.tar.gz.gz"
-if [ $? -ne 0 ]; then
-  echo "Error: gzip failed"
-  exit 1
-fi
-
-# Attempt to tar the file and handle errors
-tar -czf "$tmp/etc/pppwn.tar.gz.tar" -C "$tmp/etc" "pppwn.tar.gz.gz"
-if [ $? -ne 0 ]; then
-  echo "Error: tar failed"
-  exit 1
-fi
-
-# Output overlay for build system
-mv "$tmp/etc/pppwn.tar.gz.tar" "$HOSTNAME.apkovl.tar.gz"
+tar -c -C "$tmp" etc | gzip -9n > $HOSTNAME.apkovl.tar.gz

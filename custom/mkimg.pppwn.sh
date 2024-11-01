@@ -3,7 +3,6 @@
 profile_pppwn() {
     profile_standard
     kernel_cmdline="unionfs_size=128M console=tty0 console=ttyS0,115200 quiet loglevel=0 rd.systemd.show_status=auto rd.plymouth=0 plymouth.enable=0 mitigations=off nowatchdog nospectre_v2"
-    profile_abbrev="pppwn-ultra"
     title="Nano"
     desc="Hyper-minimal profile for PS4 PPPwn jailbreak
           Absolute bare-metal footprint, optimized for single-purpose exploit"
@@ -28,7 +27,7 @@ profile_pppwn() {
         apks="$apks syslinux isolinux"
 
         # Disable unnecessary architectural features
-        kernel_cmdline+=" idle=nomwait processor.max_cstate=1"
+        kernel_cmdline=" $kernel_cmdline idle=nomwait processor.max_cstate=1"
         ;;
     esac
 
