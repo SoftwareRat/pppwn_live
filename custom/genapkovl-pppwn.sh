@@ -137,12 +137,19 @@ for service in "${SERVICES[@]}"; do
     ln -sf "/etc/init.d/$name" "$tmp/etc/runlevels/$level/$name"
 done
 
-# Generate Compressed Overlay
-if [ -d "$tmp" ] && [ -d "$tmp/etc" ]; then
-  tar -c -C "$tmp" etc | gzip -9 > "$HOSTNAME.apkovl.tar.gz"
-else
-  echo "Error: Required directories do not exist" && exit 1
+# Attempt to gzip the file and handle errors
+gzip -c "$tmp/etc/pppwn.tar.gz" > "$tmp/etc/pppwn.tar.gz.gz"
+if [ $? -ne 0 ]; then
+  echo "Error: gzip failed"
+  exit 1
+fi
+
+# Attempt to tar the file and handle errors
+tar -czf "$tmp/etc/pppwn.tar.gz.tar" -C "$tmp/etc" "pppwn.tar.gz.gz"
+if [ $? -ne 0 ]; then
+  echo "Error: tar failed"
+  exit 1
 fi
 
 # Output overlay for build system
-mv "$HOSTNAME.apkovl.tar.gz" .
+mv "$tmp/etc/pppwn.tar.gz.tar" "$HOSTNAME.apkovl.tar.gz"
