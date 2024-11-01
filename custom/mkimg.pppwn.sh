@@ -26,7 +26,7 @@ generate_modloop() {
 profile_pppwn() {
     profile_standard
     profile_abbrev="pppwn"
-    kernel_cmdline="unionfs_size=128M console=tty0 console=ttyS0,115200 quiet loglevel=0 rd.systemd.show_status=auto rd.plymouth=0 plymouth.enable=0 mitigations=off nowatchdog nospectre_v2"
+    kernel_cmdline="unionfs_size=128M console=tty0 console=ttyS0,115200 quiet loglevel=0 rd.systemd.show_status=auto nowatchdog rd.plymouth=0 plymouth.enable=0"
     title="Nano"
     desc="Hyper-minimal profile for PS4 PPPwn jailbreak
           Absolute bare-metal footprint, optimized for single-purpose exploit"
@@ -43,14 +43,14 @@ profile_pppwn() {
 
     case "$ARCH" in
     x86*|amd64)
-        boot_addons="minimal-ucode"
-        initrd_ucode="/boot/minimal-ucode.img"
+        boot_addons="intel-ucode amd-ucode"
+        initrd_ucode="/boot/intel-ucode.img /boot/amd-ucode.img"
         syslinux_serial="0 115200"
         apks="$apks syslinux isolinux"
-        kernel_cmdline="$kernel_cmdline idle=nomwait processor.max_cstate=1"
+        kernel_cmdline="$kernel_cmdline mitigations=off nospectre_v2 idle=nomwait processor.max_cstate=1"
         ;;
     aarch64)
-        apks="$apks u-boot-tools atf-allwinner"
+        # Nothing (yet)
         ;;
     esac
 
