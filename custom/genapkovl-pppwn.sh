@@ -138,7 +138,11 @@ for service in "${SERVICES[@]}"; do
 done
 
 # Generate Compressed Overlay
-tar -c -C "$tmp" etc | gzip -9 > "$HOSTNAME.apkovl.tar.gz"
+if [ -d "$tmp" ] && [ -d "$tmp/etc" ]; then
+  tar -c -C "$tmp" etc | gzip -9 > "$HOSTNAME.apkovl.tar.gz"
+else
+  echo "Error: Required directories do not exist" && exit 1
+fi
 
 # Output overlay for build system
 mv "$HOSTNAME.apkovl.tar.gz" .
