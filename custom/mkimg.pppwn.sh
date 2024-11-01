@@ -17,7 +17,7 @@ profile_pppwn() {
         done
     done
 
-    # Architecture-specific ultra-optimization
+    # Architecture-specific optimization
     case "$ARCH" in
     x86*|amd64)
         # Minimal microcode, serial console, and bootloader
@@ -32,7 +32,7 @@ profile_pppwn() {
     esac
 
     # Custom overlay for PPPwn-specific configuration
-    apkovl="aports/scripts/genapkovl-pppwn-ultra.sh"
+    apkovl="aports/scripts/genapkovl-pppwn.sh"
 
     # Network and system optimization
     # Removed all unnecessary network packages
@@ -66,8 +66,8 @@ filter_packages() {
     done
 }
 
-# Custom initramfs generator for ultra-minimal boot
-generate_ultra_minimal_initramfs() {
+# Custom initramfs generator for minimal boot
+generate_minimal_initramfs() {
     local kernel_version="$1"
 
     # Create a bare-minimum initramfs
@@ -91,5 +91,5 @@ EOF
 
     # Create the initramfs
     cd /tmp/initramfs
-    find . | cpio -H newc -o | gzip > "/boot/initramfs-ultra-${kernel_version}"
+    find . | cpio -H newc -o | gzip > "/boot/initramfs-${kernel_version}"
 }
