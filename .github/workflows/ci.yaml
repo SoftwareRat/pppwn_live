@@ -50,6 +50,7 @@ jobs:
             dosfstools
             7zip
             curl
+            jq
           shell-name: alpine
 
       - name: Prepare PPPwn binaries
