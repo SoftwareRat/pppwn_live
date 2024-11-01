@@ -73,14 +73,14 @@ jobs:
           find /tmp -name "pppwn.tar.gz" -exec cp {} aports/scripts/pppwn.tar.gz \;
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
-          apk update
-          # DEBUG: Sleep
-          sleep 10
+          cat /etc/apk/repositories
+          ping -c 3 dl-cdn.alpinelinux.org
+          for i in 1 2 3; do apk update && break || sleep 5; done
           mkdir -p ~/tmp ~/work/iso/${ARCH}
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
           chmod +x aports/scripts/*
-          [ ! -e /lib/libalpine.sh ] && ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
+          ln -s /usr/lib/libalpine.sh /lib/libalpine.sh
 
       - name: Build ISO
         shell: alpine --root {0}
