@@ -1,4 +1,5 @@
 # PPPwnLive
+# ⚠️ [Work is already underway on a new ISO for GoldHEN v2.4b18](https://github.com/SoftwareRat/pppwn_live/issues/3)
 
 `pppwn_live` is a Linux live ISO based on Alpine Linux, designed to run [pppwn_cpp](https://github.com/xfangfang/PPPwn_cpp), a PS4 exploit, directly from the ISO on any PC. The system automatically shuts down after completing its tasks.
 
@@ -31,7 +32,7 @@
 
 - PC with USB port or CD/DVD drive
 - USB drive or CD/DVD for bootable media
-- Ethernet cable and port on the PC running PPPwnLive 
+- Ethernet cable and port on the PC running PPPwnLive
 - Basic knowledge of booting from external media
 - If using Docker:
    - PlayStation 4 console running **firmware versions 9.00, 9.60, 10.00, 10.01, or 11.00**
