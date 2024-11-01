@@ -8,7 +8,8 @@ profile_pppwn() {
           Absolute bare-metal footprint, optimized for single-purpose exploit"
 
     # Extreme kernel optimization
-    kernel_cmdline="unionfs_size=128M console=tty0 console=ttyS0,115200 quiet loglevel=0 rd.systemd.show_status=auto "
+    kernel_cmdline=""
+    kernel_cmdline+="unionfs_size=128M console=tty0 console=ttyS0,115200 quiet loglevel=0 rd.systemd.show_status=auto "
     kernel_cmdline+="rd.plymouth=0 plymouth.enable=0 mitigations=off nowatchdog nospectre_v2"
 
     # Ultra-minimal package set
