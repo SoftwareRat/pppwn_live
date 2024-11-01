@@ -1,5 +1,24 @@
 #!/bin/sh
 
+# Add this function to handle kernel module compression
+generate_modloop() {
+    local kernel_ver="$1"
+    local modloop="$2"
+
+    # Create a temporary directory for modules
+    mkdir -p /tmp/modloop
+
+    # Copy modules to the temporary directory
+    cp -a /lib/modules/${kernel_ver} /tmp/modloop/
+
+    # Compress modules using xz with maximum compression
+    cd /tmp/modloop
+    tar -cJf "$modloop" lib/modules/${kernel_ver}
+
+    # Clean up
+    rm -rf /tmp/modloop
+}
+
 profile_pppwn() {
     profile_standard
     kernel_cmdline="unionfs_size=128M console=tty0 console=ttyS0,115200 quiet loglevel=0 rd.systemd.show_status=auto rd.plymouth=0 plymouth.enable=0 mitigations=off nowatchdog nospectre_v2"
@@ -44,6 +63,10 @@ profile_pppwn() {
         rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/*
         find / -type f -name "*.a" -delete
         find / -type f -name "*.la" -delete
+
+        # Generate modloop with explicit compression
+        local kernel_ver=$(ls /lib/modules | head -n1)
+        generate_modloop "$kernel_ver" "/boot/modloop-lts"
     }
 }
 

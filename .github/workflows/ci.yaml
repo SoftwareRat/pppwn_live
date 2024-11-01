@@ -80,13 +80,26 @@ jobs:
           cp -rf custom/* aports/scripts/
           chmod +x aports/scripts/*
 
+      - name: Verify Kernel Modules
+        shell: alpine --root {0}
+        run: |
+          ls -l /lib/modules
+          find /lib/modules -type f | head -n 10
+
       - name: Build ISO
         shell: alpine --root {0}
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
           echo "Building ISO for ${ARCH}..."
-          sh aports/scripts/mkimage.sh --tag stable --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/latest-stable/main --profile pppwn
+          set -x
+          sh aports/scripts/mkimage.sh --tag stable --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/latest-stable/main --profile pppwn || {
+            echo "ISO build failed"
+            # Add additional debugging commands here
+            ls -l /lib/modules
+            cat /var/log/mkimage.log  # If such a log exists
+            exit 1
+          }
           mv ~/work/iso/${ARCH}/alpine-pppwn-stable-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
 
       - name: Upload ISO artifact
