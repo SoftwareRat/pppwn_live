@@ -116,6 +116,7 @@ start() {
 EOF
 
 # Runlevel Configuration
+mkdir -p "$tmp/etc/runlevels/default"
 ln -sf /etc/init.d/pppwn-setup "$tmp/etc/runlevels/boot/pppwn-setup"
 ln -sf /etc/init.d/pppwn-launcher "$tmp/etc/runlevels/default/pppwn-launcher"
 
