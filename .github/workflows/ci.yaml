@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - LLA
     paths:
       - '.github/workflows/ci.yaml'
       - 'custom/**'
