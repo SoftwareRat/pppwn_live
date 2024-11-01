@@ -101,14 +101,11 @@ jobs:
         env:
           ARCH: ${{ matrix.architecture }}
         run: |
+          set -e
           echo "Building ISO for ${ARCH}..."
-          set -ex
-          sh aports/scripts/mkimage.sh --tag stable --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/latest-stable/main --profile pppwn || {
-            echo "ISO build failed"
-            cat /var/log/mkimage.log || echo "No log found"
-            exit 1
-          }
-          mv ~/work/iso/${ARCH}/alpine-pppwn-stable-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
+          sh aports/scripts/mkimage.sh --tag latest-stable --outdir ~/work/iso/${ARCH} --arch ${ARCH} --repository https://dl-cdn.alpinelinux.org/alpine/latest-stable/main --profile pppwn > /var/log/mkimage.log 2>&1 \
+          || (cat /var/log/mkimage.log || echo "No log found"; exit 1)
+          mv ~/work/iso/${ARCH}/alpine-latest-stable-${ARCH}.iso ~/work/iso/${ARCH}/pppwn-live-${ARCH}.iso
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
