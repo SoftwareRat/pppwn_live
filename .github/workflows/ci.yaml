@@ -28,7 +28,7 @@ jobs:
           submodules: true
 
       - name: Setup Alpine Linux for ${{ matrix.architecture }}
-        uses: jirutka/setup-alpine@v1
+        uses: jirutka/setup-alpine@v1.2.0
         with:
           arch: ${{ matrix.architecture }}
           branch: latest-stable
@@ -74,6 +74,8 @@ jobs:
           echo "permit nopass root" | tee -a /etc/doas.conf
           abuild-keygen -i -a -n -q
           apk update
+          # DEBUG: Sleep
+          sleep 10
           mkdir -p ~/tmp ~/work/iso/${ARCH}
           export TMPDIR=~/tmp
           cp -rf custom/* aports/scripts/
