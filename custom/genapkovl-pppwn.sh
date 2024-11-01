@@ -1,160 +1,144 @@
-#!/bin/sh -e
+#!/bin/sh
+set -eu
 
-# Set the hostname
+# Hyper-Minimal PPPwn Live Environment Generator
 HOSTNAME="PPPwnLive"
 
+# Minimal, statically defined directories
+DIRS=(
+    "etc/runlevels/sysinit"
+    "etc/runlevels/boot"
+    "etc/network"
+    "etc/init.d"
+    "root/pppwnlive"
+)
+
 cleanup() {
-	rm -rf "$tmp"
+    [ -n "${tmp:-}" ] && rm -rf "$tmp"
 }
+trap cleanup EXIT
 
-makefile() {
-	OWNER="$1"
-	PERMS="$2"
-	FILENAME="$3"
-	cat > "$FILENAME"
-	chown "$OWNER" "$FILENAME"
-	chmod "$PERMS" "$FILENAME"
-}
-
-rc_add() {
-	mkdir -p "$tmp"/etc/runlevels/"$2"
-	ln -sf /etc/init.d/"$1" "$tmp"/etc/runlevels/"$2"/"$1"
+mkfile() {
+    local path="$1" owner="${2:-root:root}" perms="${3:-0644}"
+    mkdir -p "$(dirname "$path")"
+    cat > "$path"
+    chown "$owner" "$path"
+    chmod "$perms" "$path"
 }
 
 tmp="$(mktemp -d)"
-trap cleanup exit
+cd "$tmp"
 
-mkdir -p "$tmp"/etc
-mkdir -p "$tmp"/etc/init.d
-mkdir -p "$tmp"/etc/profile.d
-mkdir -p "$tmp"/etc/apk
-mkdir -p "$tmp"/root
+for dir in "${DIRS[@]}"; do
+    mkdir -p "$tmp/$dir"
+done
 
-# WAR: Search for an aports/scripts/pppwn.tar.gz file in the home directory and copy it to "$tmp"/etc/
-find ~ -path "*/aports/scripts/pppwn.tar.gz" -exec cp {} "$tmp"/etc/pppwn.tar.gz \;
+echo "$HOSTNAME" | mkfile "$tmp/etc/hostname"
 
-makefile root:root 0644 "$tmp"/etc/hostname <<EOF
-$HOSTNAME
-EOF
-
-mkdir -p "$tmp"/etc/network
-makefile root:root 0644 "$tmp"/etc/network/interfaces <<EOF
+mkfile "$tmp/etc/network/interfaces" <<EOF
 auto lo
 iface lo inet loopback
-
 auto eth0
 iface eth0 inet dhcp
 EOF
 
-makefile root:root 0644 "$tmp"/etc/apk/world <<EOF
+mkfile "$tmp/etc/apk/world" <<EOF
 alpine-base
 busybox
 openrc
-bash
-agetty
 EOF
 
-# Configure /etc/inittab for auto-login
-mkdir -p "$tmp/etc"
-makefile root:root 0755 "$tmp"/etc/inittab <<EOF
-# /etc/inittab
-
+mkfile "$tmp/etc/inittab" root:root 0755 <<EOF
 ::sysinit:/sbin/openrc sysinit
 ::sysinit:/sbin/openrc boot
 ::wait:/sbin/openrc default
-
-tty1::respawn:/sbin/agetty 38400 tty1 --autologin root --noclear
-tty2::respawn:/sbin/getty 38400 tty2
-
+tty1::respawn:/sbin/agetty -a root 38400 tty1
 ::shutdown:/sbin/openrc shutdown
-
-ttyS0::respawn:/sbin/getty -L 0 ttyS0 vt100
 EOF
 
-makefile root:root 0644 "$tmp"/etc/profile.d/motd.sh <<EOF
-#!/bin/bash
-clear
-echo -e "\033[1;34m▗▄▄▖ \033[1;36m▗▄▄▖ \033[1;34m▗▄▄▖ \033[1;37m▗▖ \033[1;37m▗▖\033[1;34m▗▖  \033[1;36m▗▖▗▖   \033[1;34m▗▄▄▄▖\033[1;37m▗▖  \033[1;34m▗▖\033[1;37m▗▄▄▄▖\033[0m"
-echo -e "\033[1;34m▐▌ ▐▌\033[1;36m▐▌ ▐▌\033[1;34m▐▌ ▐▌\033[1;37m▐▌ ▐▌\033[1;36m▐▛▚▖\033[1;34m▐▌\033[1;37m▐▌     \033[1;34m█  \033[1;37m▐▌  \033[1;34m▐▌\033[1;37m▐▌   \033[0m"
-echo -e "\033[1;34m▐▛▀▘ \033[1;36m▐▛▀▘ \033[1;34m▐▛▀▘ \033[1;37m▐▌ ▐▌\033[1;36m▐▌ ▝▜▌\033[1;37m▐▌     \033[1;34m█  \033[1;37m▐▌  \033[1;34m▐▛▀▀▘\033[0m"
-echo -e "\033[1;34m▐▌   \033[1;36m▐▌   \033[1;34m▐▌   \033[1;37m▐▙█▟▌\033[1;36m▐▌  ▐▌\033[1;34m▐▙▄▄▖\033[1;37m▗▄█▄▖ \033[1;36m▝▚▞▘ \033[1;34m▐▙▄▄▖\033[0m"
-
-echo
-echo -e "\033[1;37mWelcome to \033[1;34mPPPwnLive\033[1;37m!\033[0m Please make sure to have your Ethernet cable plugged in and connected to the PlayStation 4."
-echo
-echo -e "\033[1;31mCredits:\033[0m"
-echo -e "- \033[1;34mxfangfang\033[0m (\033[4mhttps://github.com/xfangfang/PPPwn_cpp\033[0m) for developing the C++ version of PPPwn"
-echo -e "- \033[1;34mTheFloW\033[0m (\033[4mhttps://github.com/TheOfficialFloW/PPPwn\033[0m) for the original discovery and creation of PPPwn"
-EOF
-
-makefile root:root 0755 "$tmp"/etc/setup.sh <<EOF
-#!/bin/sh
-
-tar -xzf /etc/pppwn.tar.gz -C /root/
-chmod +x /root/pppwnlive/pppwn
-
-# Find the first available ethernet interface
-ETH_IF=\$(ip -o link show | awk -F': ' '\$2 ~ /^eth|^en/ {print \$2; exit}')
-
-# Enable the ethernet interface
-ip link set dev \$ETH_IF up
-
-if [ -n "\$ETH_IF" ]; then
-    # Run pppwn command with the detected interface
-    cd /root/pppwnlive
-    while true; do
-        ./pppwn -i "\$ETH_IF" --fw 1100 --stage1 stage1.bin --stage2 stage2.bin -a
-        echo "PPPwn finished execution. Shutting down..."
-        sleep 3
-        poweroff
-    done
-else
-    echo "No ethernet interface found. Please check your connection."
-    echo "Press any key to shutdown..."
-    read -n 1 -s
-    poweroff
-fi
-EOF
-
-# Use /root/.profile to automatically run /etc/setup.sh
-makefile root:root 0644 "$tmp"/etc/.profile <<EOF
-/etc/setup.sh
-EOF
-
-# WAR: Create an OpenRC service to move the profile
-makefile root:root 0755 "$tmp"/etc/init.d/move-profile <<EOF
+mkfile "$tmp/etc/init.d/pppwn-launcher" root:root 0755 <<'EOF'
 #!/sbin/openrc-run
 
-description="Move /etc/.profile to /root/.profile"
+description="Initialize PPPwn_cpp"
 
 depend() {
-    need localmount
-    before local
+    need net
+    after network
 }
 
 start() {
-    ebegin "Moving /etc/.profile to /root/.profile"
-    mv /etc/.profile /root/.profile 2>/dev/null
+    # Find first ethernet interface
+    ETH_IF=$(ip -o link show | awk -F': ' '$2 ~ /^(eth|en)/ {print $2; exit}')
+
+    if [ -z "$ETH_IF" ]; then
+        eerror "No Ethernet interface found"
+        return 1
+    fi
+
+    # Minimal PPPwn execution
+    ebegin "Launching PPPwn on $ETH_IF"
+    cd /root/pppwnlive
+    ./pppwn -i "$ETH_IF" --fw 1100 \
+             --stage1 stage1.bin \
+             --stage2 stage2.bin \
+             -a
+    result=$?
+    eend $result "PPPwn failed"
+
+    # Automatic shutdown after exploit
+    [ $result -eq 0 ] && poweroff
+}
+EOF
+
+# Minimal Welcome Banner
+mkfile "$tmp/etc/profile.d/welcome.sh" root:root 0755 <<'EOF'
+#!/bin/sh
+printf "\033[1;34mPPPwnLite\033[0m - Minimal PS4 Jailbreak Environment\n"
+printf "Ethernet Required. Exploit Prepared.\n"
+EOF
+
+# Setup Extraction and Execution Script
+mkfile "$tmp/etc/init.d/pppwn-setup" root:root 0755 <<'EOF'
+#!/sbin/openrc-run
+
+description="PPPwn Extraction Setup"
+
+depend() {
+    need localmount
+}
+
+start() {
+    ebegin "Extracting PPPwn Payload"
+    tar -xzf /etc/pppwn.tar.gz -C /root
+    chmod -R 700 /root/pppwnlive
     eend $?
 }
 EOF
 
-# Enable necessary services for networking
-rc_add devfs sysinit
-rc_add dmesg sysinit
-rc_add mdev sysinit
-rc_add hwdrivers sysinit
-rc_add modloop sysinit
+# Runlevel Configuration
+ln -sf /etc/init.d/pppwn-setup "$tmp/etc/runlevels/boot/pppwn-setup"
+ln -sf /etc/init.d/pppwn-launcher "$tmp/etc/runlevels/default/pppwn-launcher"
 
-rc_add hwclock boot
-rc_add modules boot
-rc_add sysctl boot
-rc_add hostname boot
-rc_add bootmisc boot
-rc_add syslog boot
-rc_add move-profile boot
+# Minimal Service Dependencies
+SERVICES=(
+    "devfs:sysinit"
+    "dmesg:sysinit"
+    "mdev:sysinit"
+    "hwdrivers:sysinit"
+    "hwclock:boot"
+    "modules:boot"
+    "sysctl:boot"
+    "hostname:boot"
+    "bootmisc:boot"
+)
 
-rc_add mount-ro shutdown
-rc_add killprocs shutdown
-rc_add savecache shutdown
-tar -c -C "$tmp" etc | gzip -9n > $HOSTNAME.apkovl.tar.gz
+for service in "${SERVICES[@]}"; do
+    IFS=: read -r name level <<< "$service"
+    ln -sf "/etc/init.d/$name" "$tmp/etc/runlevels/$level/$name"
+done
+
+# Generate Compressed Overlay
+tar -c -C "$tmp" etc | gzip -9 > "$HOSTNAME.apkovl.tar.gz"
+
+# Output overlay for build system
+mv "$HOSTNAME.apkovl.tar.gz" .
