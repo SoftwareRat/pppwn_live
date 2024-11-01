@@ -89,13 +89,6 @@ jobs:
           cp -rf custom/* aports/scripts/
           chmod +x aports/scripts/*
 
-      - name: Verify Kernel Modules
-        shell: alpine --root {0}
-        run: |
-          echo "Verifying Kernel Modules for ${ARCH}..."
-          ls -l /lib/modules || echo "Warning: /lib/modules directory not found"
-          find /lib/modules -type f | head -n 10 || echo "No modules found to verify"
-
       - name: Build ISO
         shell: alpine --root {0}
         env:

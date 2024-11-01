@@ -5,13 +5,13 @@ set -eu
 HOSTNAME="PPPwnLive"
 
 # Minimal, statically defined directories
-DIRS=(
-    "etc/runlevels/sysinit"
-    "etc/runlevels/boot"
-    "etc/network"
-    "etc/init.d"
-    "root/pppwnlive"
-)
+DIRS="
+    etc/runlevels/sysinit
+    etc/runlevels/boot
+    etc/network
+    etc/init.d
+    root/pppwnlive
+"
 
 cleanup() {
     [ -n "${tmp:-}" ] && rm -rf "$tmp"
@@ -29,7 +29,7 @@ mkfile() {
 tmp="$(mktemp -d)"
 cd "$tmp"
 
-for dir in "${DIRS[@]}"; do
+for dir in $DIRS; do
     mkdir -p "$tmp/$dir"
 done
 
@@ -120,19 +120,19 @@ ln -sf /etc/init.d/pppwn-setup "$tmp/etc/runlevels/boot/pppwn-setup"
 ln -sf /etc/init.d/pppwn-launcher "$tmp/etc/runlevels/default/pppwn-launcher"
 
 # Minimal Service Dependencies
-SERVICES=(
-    "devfs:sysinit"
-    "dmesg:sysinit"
-    "mdev:sysinit"
-    "hwdrivers:sysinit"
-    "hwclock:boot"
-    "modules:boot"
-    "sysctl:boot"
-    "hostname:boot"
-    "bootmisc:boot"
-)
+SERVICES="
+    devfs:sysinit
+    dmesg:sysinit
+    mdev:sysinit
+    hwdrivers:sysinit
+    hwclock:boot
+    modules:boot
+    sysctl:boot
+    hostname:boot
+    bootmisc:boot
+"
 
-for service in "${SERVICES[@]}"; do
+for service in $SERVICES; do
     IFS=: read -r name level <<< "$service"
     ln -sf "/etc/init.d/$name" "$tmp/etc/runlevels/$level/$name"
 done
