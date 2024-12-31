@@ -16,7 +16,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential wget xorriso isolinux syslinux-utils
+        sudo apt-get install -y build-essential wget xorriso isolinux syslinux-utils \
+          libelf-dev bc flex bison libssl-dev dwarves zstd
     
     - name: Set up build environment
       run: |
