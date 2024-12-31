@@ -15,9 +15,7 @@ wget -q "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.ta
 tar xf "linux-${KERNEL_VERSION}.tar.xz"
 cd "linux-${KERNEL_VERSION}"
 cp ../configs/kernel/minimal.config .config
-# Enable promiscuous mode and packet capture by default
-echo "CONFIG_PACKET=y" >> .config
-echo "CONFIG_PACKET_DIAG=y" >> .config
+yes "" | make olddefconfig
 make -j$(nproc)
 cp arch/x86_64/boot/bzImage "${BUILD_DIR}/kernel"
 cd ..
@@ -27,6 +25,7 @@ wget -q "https://busybox.net/downloads/busybox-${BUSYBOX_VERSION}.tar.bz2"
 tar xf "busybox-${BUSYBOX_VERSION}.tar.bz2"
 cd "busybox-${BUSYBOX_VERSION}"
 cp ../configs/busybox/minimal.config .config
+yes "" | make oldconfig
 make -j$(nproc) CONFIG_PREFIX="${SYSROOT}"
 make install CONFIG_PREFIX="${SYSROOT}"
 cd ..
