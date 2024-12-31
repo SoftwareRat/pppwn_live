@@ -8,12 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/mount.h>
-#include <sys/wait.h>
-#include <sys/reboot.h>
-#include <linux/reboot.h>
+#include <sys/types.h>
 #include <sys/stat.h>
-#include <signal.h>
+#include <sys/sysmacros.h>
+#include <sys/mount.h>
+#include <fcntl.h>
 
 // Mount points to set up
 static const struct {
