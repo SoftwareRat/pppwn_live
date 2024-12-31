@@ -18,14 +18,17 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential wget xorriso isolinux syslinux-utils
     
-    - name: Build kernel and initramfs
+    - name: Set up build environment
       run: |
         mkdir -p build/output
-        sudo ./scripts/build.sh
+        chmod +x scripts/build.sh
+        chmod +x scripts/build-iso.sh
+    
+    - name: Build kernel and initramfs
+      run: sudo bash scripts/build.sh
       
     - name: Create ISO
-      run: |
-        sudo ./scripts/build-iso.sh pppwn build/output
+      run: sudo bash scripts/build-iso.sh pppwn build/output
         
     - name: Upload ISO artifact
       uses: actions/upload-artifact@v3
