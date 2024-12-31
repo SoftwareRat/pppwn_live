@@ -1,0 +1,54 @@
+name: Build PPPwn Live ISO
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential wget xorriso isolinux syslinux-utils
+    
+    - name: Build kernel and initramfs
+      run: |
+        mkdir -p build/output
+        sudo ./scripts/build.sh
+      
+    - name: Create ISO
+      run: |
+        sudo ./scripts/build-iso.sh pppwn build/output
+        
+    - name: Upload ISO artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: pppwn-live
+        path: build/output/pppwn.iso
+        
+    - name: Create Dev Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: build/output/pppwn.iso
+        name: PPPwn Live (Development Build)
+        tag_name: dev-v${{ github.run_number }}
+        draft: false
+        prerelease: true
+        
+    - name: Create Stable Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: build/output/pppwn.iso
+        name: PPPwn Live
+        tag_name: v${{ github.run_number }}
+        draft: false
+        prerelease: false
