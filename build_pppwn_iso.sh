@@ -57,9 +57,7 @@ download_assets() {
     rm -f GoldHEN.7z stage2_v*.7z
 
     echo "Downloading latest PPPwn binary..."
-    PPPWN_URL=$(curl -s "https://api.github.com/repos/xfangfang/PPPwn_cpp/releases" \
-        | jq -r '[.[] | select(.prerelease == true or .prerelease == false)][0].assets[] \
-        | select(.name | endswith("x86_64-linux-musl.zip")).browser_download_url')
+    PPPWN_URL=$(curl -s "https://api.github.com/repos/xfangfang/PPPwn_cpp/releases" | jq -r '[.[] | select(.prerelease == true or .prerelease == false)][0].assets[] | select(.name | endswith("x86_64-linux-musl.zip")).browser_download_url')
     wget -O pppwn.zip "${PPPWN_URL}"
     unzip pppwn.zip
     tar xf pppwn.tar.gz
