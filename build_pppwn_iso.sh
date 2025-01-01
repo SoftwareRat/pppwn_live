@@ -133,7 +133,6 @@ CONFIG_IPV6=y
 CONFIG_IPV6_ROUTER_PREF=y
 CONFIG_IPV6_MULTIPLE_TABLES=y
 CONFIG_IPV6_SEG6_LWTUNNEL=y
-# Add any additional IPv6-related options here
 EOF
 }
 
@@ -182,8 +181,10 @@ BR2_TARGET_SYSLINUX_EFI=n
 BR2_TARGET_GRUB2=y
 BR2_TARGET_GRUB2_I386_PC=y
 BR2_TARGET_GRUB2_EFI_X86_64=y
-BR2_TARGET_GRUB2_BUILTIN_MODULES="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop"
-BR2_TARGET_GRUB2_BUILTIN_CONFIG="${BR_DIR}/grub.cfg"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop"
+BR2_TARGET_GRUB2_BUILTIN_CONFIG_PC="${BR_DIR}/grub.cfg"
+BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI="${BR_DIR}/grub.cfg"
 
 # Linux kernel build
 BR2_LINUX_KERNEL=y
