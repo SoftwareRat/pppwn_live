@@ -69,6 +69,9 @@ download_assets() {
 
 # Create a simple IPv6 network configuration
 create_network_config() {
+    # Create the network directory structure first
+    mkdir -p "${OVERLAY_DIR}/etc/network"
+    
     cat > "${OVERLAY_DIR}/etc/network/interfaces" << 'EOF'
 auto lo
 iface lo inet loopback
