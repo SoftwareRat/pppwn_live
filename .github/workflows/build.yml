@@ -19,29 +19,28 @@ jobs:
         sudo apt-get install -y build-essential wget xorriso isolinux syslinux-utils \
           libelf-dev bc flex bison libssl-dev dwarves zstd
     
-    - name: Set up build environment
+    - name: Make scripts executable
       run: |
-        mkdir -p build/output
-        chmod +x scripts/build.sh
-        chmod +x scripts/build-iso.sh
+        chmod +x build_pppwn_iso.sh
+        chmod +x test_build.sh
     
-    - name: Build kernel and initramfs
-      run: sudo bash scripts/build.sh
-      
-    - name: Create ISO
-      run: sudo bash scripts/build-iso.sh pppwn build/output
+    - name: Build ISO
+      run: sudo ./build_pppwn_iso.sh
+    
+    - name: Run tests
+      run: sudo ./test_build.sh
         
     - name: Upload ISO artifact
       uses: actions/upload-artifact@v3
       with:
         name: pppwn-live
-        path: build/output/pppwn.iso
+        path: build/output/*.iso
         
     - name: Create Dev Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
       uses: softprops/action-gh-release@v1
       with:
-        files: build/output/pppwn.iso
+        files: build/output/*.iso
         name: PPPwn Live (Development Build)
         tag_name: dev-v${{ github.run_number }}
         draft: false
@@ -51,8 +50,8 @@ jobs:
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v1
       with:
-        files: build/output/pppwn.iso
+        files: build/output/*.iso
         name: PPPwn Live
         tag_name: v${{ github.run_number }}
         draft: false
-        prerelease: false
+        prerelease: false 
