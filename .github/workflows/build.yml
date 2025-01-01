@@ -19,7 +19,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential wget xorriso isolinux syslinux-utils \
-          libelf-dev bc flex bison libssl-dev dwarves zstd curl jq 7zip unzip
+          libelf-dev bc flex bison libssl-dev dwarves zstd curl jq 7zip unzip \
+          git rsync
     
     - name: Make scripts executable
       run: |
