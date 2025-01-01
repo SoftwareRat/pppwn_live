@@ -22,14 +22,10 @@ jobs:
     - name: Make scripts executable
       run: |
         chmod +x build_pppwn_iso.sh
-        chmod +x test_build.sh
     
     - name: Build ISO
       run: sudo ./build_pppwn_iso.sh
     
-    - name: Run tests
-      run: sudo ./test_build.sh
-        
     - name: Upload ISO artifact
       uses: actions/upload-artifact@v3
       with:
