@@ -197,6 +197,9 @@ BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="\${BR_DIR}/kernel-ipv6.config"
 BR2_ROOTFS_OVERLAY="${OVERLAY_DIR}"
 EOF
 
+    # Remove any legacy watchdog configurations if they exist
+    sed -i '/BR2_PACKAGE_WATCHDOG/d' .config
+
     # Update configuration based on newly appended settings
     make olddefconfig
 
