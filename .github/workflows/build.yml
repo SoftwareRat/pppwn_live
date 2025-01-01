@@ -34,7 +34,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: pppwn-live-output
-        path: pppwn_buildroot/buildroot-*/output/
+        path: pppwn_buildroot/buildroot-*/output/images/
         if-no-files-found: error
         
     - name: Create Dev Release
