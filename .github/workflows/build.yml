@@ -26,7 +26,9 @@ jobs:
         chmod +x build_pppwn_iso.sh
     
     - name: Build ISO
-      run: sudo ./build_pppwn_iso.sh
+      env:
+        FORCE_UNSAFE_CONFIGURE: 1
+      run: ./build_pppwn_iso.sh
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3
