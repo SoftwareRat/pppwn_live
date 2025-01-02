@@ -278,9 +278,9 @@ EOF
     # Update configuration based on newly appended settings
     make olddefconfig
 
-    # Create a minimal grub.cfg
+    # Create a minimal grub.cfg in both locations
     mkdir -p "${OVERLAY_DIR}/boot/grub"
-    cat > "${OVERLAY_DIR}/boot/grub/grub.cfg" << EOF
+    cat > "${BR_DIR}/grub.cfg" << EOF
 set default="0"
 set timeout="10"
 
@@ -289,6 +289,9 @@ menuentry "PPPwn Live" {
     initrd /boot/initrd
 }
 EOF
+
+    # Also copy it to the overlay for the final image
+    cp "${BR_DIR}/grub.cfg" "${OVERLAY_DIR}/boot/grub/grub.cfg"
 
     # Create syslinux configuration for legacy boot
     mkdir -p "${OVERLAY_DIR}/boot/syslinux"
