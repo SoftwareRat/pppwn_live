@@ -226,13 +226,11 @@ BR2_TOOLCHAIN_BUILDROOT_MUSL=y
 BR2_INIT_BUSYBOX=y
 
 # Required packages
-BR2_PACKAGE_RPCBIND=y
 BR2_PACKAGE_PPPD=y
+BR2_PACKAGE_PPPOE=y
 BR2_PACKAGE_RPCBIND=y
 BR2_PACKAGE_NMAP=y
 BR2_PACKAGE_NMAP_NMAP=y
-BR2_PACKAGE_PPPOE=y
-BR2_PACKAGE_RPCBIND=y
 
 # IPv6 Support
 BR2_TOOLCHAIN_BUILDROOT_WCHAR=y
@@ -280,7 +278,7 @@ EOF
     # Update configuration based on newly appended settings
     make olddefconfig
 
-    # Create a minimal grub.cfg in both locations
+    # Create GRUB configuration
     mkdir -p "${OVERLAY_DIR}/boot/grub2"
     cat > "${OVERLAY_DIR}/boot/grub2/grub.cfg" << EOF
 set default="0"
@@ -291,9 +289,6 @@ menuentry "PPPwn Live" {
     initrd /boot/initrd
 }
 EOF
-
-    # Also copy it to the overlay for the final image
-    cp "${BR_DIR}/grub.cfg" "${OVERLAY_DIR}/boot/grub2/grub.cfg"
 
     # Create syslinux configuration for legacy boot
     mkdir -p "${OVERLAY_DIR}/boot/syslinux"
