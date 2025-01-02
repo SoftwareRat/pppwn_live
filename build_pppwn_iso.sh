@@ -96,6 +96,12 @@ reseteth() {
     sleep 3
 }
 
+run_pppwn() {
+    /usr/bin/pppwn -i eth0 --fw 1100 \
+        --stage1 /usr/share/pppwn/stage1.bin \
+        --stage2 /usr/share/pppwn/stage2.bin
+}
+
 check_pppwn() {
     echo "Checking PPPwn status..."
     if dmesg | grep -q "\[+\] Done!"; then
@@ -140,6 +146,10 @@ while true; do
     killall pppoe-server
     reseteth
     sleep 2
+    
+    echo "Running PPPwn attempt $attempt..."
+    run_pppwn
+    
     attempt=$((attempt + 1))
 done
 EOF
