@@ -231,6 +231,8 @@ BR2_PACKAGE_PPPD=y
 BR2_PACKAGE_RPCBIND=y
 BR2_PACKAGE_NMAP=y
 BR2_PACKAGE_NMAP_NMAP=y
+BR2_PACKAGE_PPPOE=y
+BR2_PACKAGE_RPCBIND=y
 
 # IPv6 Support
 BR2_TOOLCHAIN_BUILDROOT_WCHAR=y
@@ -279,8 +281,8 @@ EOF
     make olddefconfig
 
     # Create a minimal grub.cfg in both locations
-    mkdir -p "${OVERLAY_DIR}/boot/grub"
-    cat > "${BR_DIR}/grub.cfg" << EOF
+    mkdir -p "${OVERLAY_DIR}/boot/grub2"
+    cat > "${OVERLAY_DIR}/boot/grub2/grub.cfg" << EOF
 set default="0"
 set timeout="10"
 
@@ -291,7 +293,7 @@ menuentry "PPPwn Live" {
 EOF
 
     # Also copy it to the overlay for the final image
-    cp "${BR_DIR}/grub.cfg" "${OVERLAY_DIR}/boot/grub/grub.cfg"
+    cp "${BR_DIR}/grub.cfg" "${OVERLAY_DIR}/boot/grub2/grub.cfg"
 
     # Create syslinux configuration for legacy boot
     mkdir -p "${OVERLAY_DIR}/boot/syslinux"
