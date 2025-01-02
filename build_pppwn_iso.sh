@@ -161,15 +161,13 @@ start() {
     # Configure network interface
     ip link set "$IFACE" up
 
-    # Run PPPwn and status check
+    # Run PPPwn first without auto mode
+    echo "Starting initial PPPwn attempt..."
     /usr/bin/pppwn -i "$IFACE" --fw 1100 \
         --stage1 /usr/share/pppwn/stage1.bin \
-        --stage2 /usr/share/pppwn/stage2.bin -a &
+        --stage2 /usr/share/pppwn/stage2.bin
 
-    # Wait a bit for PPPwn to start
-    sleep 5
-    
-    # Run the status checker
+    # After PPPwn exits, run the status checker which will handle retries if needed
     /usr/bin/check_status
 }
 
