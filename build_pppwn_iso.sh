@@ -84,6 +84,68 @@ EOF
 
 # Create startup script that runs PPPwn
 create_startup_script() {
+    # First, create the check_status script
+    cat > "${OVERLAY_DIR}/usr/bin/check_status" << 'EOF'
+#!/bin/sh
+
+# Function to reset ethernet interface
+reseteth() {
+    ifconfig eth0 down
+    sleep 1
+    ifconfig eth0 up
+    sleep 3
+}
+
+check_pppwn() {
+    echo "Checking PPPwn status..."
+    if dmesg | grep -q "\[+\] Done!"; then
+        echo "PPPwn payload successful - shutting down..."
+        killall pppoe-server
+        halt
+        exit 0
+    fi
+    return 1
+}
+
+# Check for GoldHEN first
+echo "Checking for GoldHEN..."
+pppoe-server -I eth0 -T 60 -N 1 -C isp -S isp -L 192.168.1.1 -R 192.168.1.2 &
+sleep 2
+
+# Wait for connection
+while ! ping -c 1 192.168.1.2 >/dev/null 2>&1; do
+    sleep 2
+done
+sleep 5
+
+# Check if GoldHEN port is open
+if nmap -n -p 3232 192.168.1.2 | grep -q '3232/tcp open'; then
+    echo "GoldHEN detected - shutting down..."
+    killall pppoe-server
+    halt
+    exit 0
+fi
+
+# Try PPPwn indefinitely
+attempt=1
+
+while true; do
+    echo "PPPwn attempt $attempt"
+    check_pppwn
+    if [ $? -eq 0 ]; then
+        break
+    fi
+    
+    echo "PPPwn attempt $attempt failed, retrying..."
+    killall pppoe-server
+    reseteth
+    sleep 2
+    attempt=$((attempt + 1))
+done
+EOF
+    chmod +x "${OVERLAY_DIR}/usr/bin/check_status"
+
+    # Create the startup service that calls check_status
     cat > "${OVERLAY_DIR}/etc/init.d/S99pppwn" << 'EOF'
 #!/bin/sh
 
@@ -99,19 +161,16 @@ start() {
     # Configure network interface
     ip link set "$IFACE" up
 
-    # Run PPPwn
+    # Run PPPwn and status check
     /usr/bin/pppwn -i "$IFACE" --fw 1100 \
         --stage1 /usr/share/pppwn/stage1.bin \
-        --stage2 /usr/share/pppwn/stage2.bin -a
+        --stage2 /usr/share/pppwn/stage2.bin -a &
 
-    EXITCODE=$?
-    if [ $EXITCODE -eq 0 ]; then
-        poweroff
-    else
-        echo "An error has occurred +++ Error code: $EXITCODE"
-        sleep 10
-        poweroff
-    fi
+    # Wait a bit for PPPwn to start
+    sleep 5
+    
+    # Run the status checker
+    /usr/bin/check_status
 }
 
 case "$1" in
@@ -157,6 +216,13 @@ BR2_x86_64=y
 # System Configuration
 BR2_TOOLCHAIN_BUILDROOT_MUSL=y
 BR2_INIT_BUSYBOX=y
+
+# Required packages
+BR2_PACKAGE_RPCBIND=y
+BR2_PACKAGE_PPPD=y
+BR2_PACKAGE_RPCBIND=y
+BR2_PACKAGE_NMAP=y
+BR2_PACKAGE_NMAP_NMAP=y
 
 # IPv6 Support
 BR2_TOOLCHAIN_BUILDROOT_WCHAR=y
@@ -205,14 +271,28 @@ EOF
     make olddefconfig
 
     # Create a minimal grub.cfg
-    cat > grub.cfg << EOF
-set default=0
-set timeout=1
+    mkdir -p "${OVERLAY_DIR}/boot/grub"
+    cat > "${OVERLAY_DIR}/boot/grub/grub.cfg" << EOF
+set default="0"
+set timeout="10"
 
 menuentry "PPPwn Live" {
-    linux /boot/bzImage root=/dev/sr0 console=tty1 quiet
-    boot
+    linux /boot/bzImage root=/dev/sr0
+    initrd /boot/initrd
 }
+EOF
+
+    # Create syslinux configuration for legacy boot
+    mkdir -p "${OVERLAY_DIR}/boot/syslinux"
+    cat > "${OVERLAY_DIR}/boot/syslinux/syslinux.cfg" << EOF
+PROMPT 0
+TIMEOUT 0
+DEFAULT pppwn
+
+LABEL pppwn
+    MENU LABEL PPPwn Live
+    LINUX /boot/bzImage
+    APPEND root=/dev/sr0
 EOF
 }
 
