@@ -45,7 +45,7 @@ jobs:
         BUILDROOT_TAR="buildroot-${BUILDROOT_VERSION}.tar.gz"
         wget "https://buildroot.org/downloads/${BUILDROOT_TAR}"
         wget "https://buildroot.org/downloads/${BUILDROOT_TAR}.sign"
-        gpg --keyserver keyserver.ubuntu.com --recv-keys 34774784
+        gpg --batch --keyserver keyserver.ubuntu.com --recv-keys AB07D806D2CE741FB886EE50B025BA8B59C36319
         gpg --verify "${BUILDROOT_TAR}.sign" "${BUILDROOT_TAR}" || exit 1
         tar xf "${BUILDROOT_TAR}"
         mv "buildroot-${BUILDROOT_VERSION}" buildroot
