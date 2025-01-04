@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Buildroot 2024.02.9-72-g08f268ace7 Configuration
+# Buildroot -gf93c0e4-dirty Configuration
 #
 BR2_HAVE_DOT_CONFIG=y
 BR2_HOST_GCC_AT_LEAST_4_9=y
@@ -2174,7 +2174,7 @@ BR2_PACKAGE_LIBVPL_ARCH_SUPPORTS=y
 BR2_PACKAGE_WEBKITGTK_ARCH_SUPPORTS=y
 
 #
-# webkitgtk needs libgtk3 and a toolchain w/ C++, wchar, NPTL, dynamic library, gcc >= 10, host gcc >= 4.9
+# webkitgtk needs libgtk3 and a toolchain w/ C++, wchar, threads, dynamic library, gcc >= 10, host gcc >= 4.9
 #
 # BR2_PACKAGE_WEBP is not set
 
@@ -2192,7 +2192,7 @@ BR2_PACKAGE_WEBKITGTK_ARCH_SUPPORTS=y
 BR2_PACKAGE_WPEWEBKIT_ARCH_SUPPORTS=y
 
 #
-# wpewebkit needs a toolchain w/ C++, wchar, NPTL, dynamic library, gcc >= 10, host gcc >= 4.9
+# wpewebkit needs a toolchain w/ C++, wchar, threads, dynamic library, gcc >= 10, host gcc >= 4.9
 #
 
 #
@@ -4070,6 +4070,11 @@ BR2_PACKAGE_XVISOR_ARCH_SUPPORTS=y
 # BR2_PACKAGE_NANO is not set
 # BR2_PACKAGE_UEMACS is not set
 # BR2_PACKAGE_VIM is not set
+
+#
+# PPPwn Packages
+#
+BR2_PACKAGE_PPPWN=y
 
 #
 # Filesystem images

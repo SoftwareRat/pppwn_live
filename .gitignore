@@ -13,6 +13,7 @@
 *.rej
 *~
 *.swp
+/buildroot/
 
 # Build system temps
 /build/
