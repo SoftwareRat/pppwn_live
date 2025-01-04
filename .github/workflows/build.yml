@@ -19,6 +19,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        path: pppwn_live
 
     - name: Install dependencies
       run: |
@@ -38,10 +40,16 @@ jobs:
           bzip2 \
           patch \
           tar \
-          findutils
+          findutils \
+          curl \
+          jq \
+          7zip
 
-    - name: Download Buildroot
+    - name: Setup workspace
       run: |
+        pwd
+        ls -la
+        cd pppwn_live
         BUILDROOT_TAR="buildroot-${BUILDROOT_VERSION}.tar.gz"
         wget "https://buildroot.org/downloads/${BUILDROOT_TAR}"
         wget "https://buildroot.org/downloads/${BUILDROOT_TAR}.sign"
@@ -52,22 +60,50 @@ jobs:
         sha1sum -c ${BUILDROOT_TAR}.sha1
         tar xf "${BUILDROOT_TAR}"
         mv "buildroot-${BUILDROOT_VERSION}" buildroot
+        ls -la
+        echo "Workspace contents:"
+        find . -maxdepth 2 -type d
+
+    - name: Verify config file
+      run: |
+        cd pppwn_live
+        echo "Config file contents:"
+        ls -la configs/
+        cat configs/pppwn_${{ matrix.arch }}_defconfig | head -n 10
+        echo "BR2_EXTERNAL path:"
+        echo $PWD
 
     - name: Configure and Build
       run: |
-        cd buildroot || exit 1
+        cd pppwn_live/buildroot
+        echo "Current directory: $PWD"
+        echo "Parent directory contents:"
+        ls -la ..
         make BR2_EXTERNAL=.. pppwn_${{ matrix.arch }}_defconfig
-        make -j$(nproc) || exit 1
+        if [ $? -ne 0 ]; then
+          echo "Error: Failed to apply defconfig"
+          exit 1
+        fi
+        make -j$(nproc)
+        if [ $? -ne 0 ]; then
+          echo "Error: Build failed"
+          cat output/build/build-time.log || true
+          exit 1
+        fi
 
     - name: Prepare artifacts
+      if: success()
       run: |
+        cd pppwn_live
         mkdir -p artifacts
-        cp buildroot/output/images/rootfs.iso9660 artifacts/pppwn-live-${{ matrix.arch }}.iso
-        sha256sum artifacts/* > artifacts/SHA256SUMS
+        cp buildroot/output/images/rootfs.iso9660 artifacts/pppwn-live-${{ matrix.arch }}.iso || echo "ISO file not found"
+        ls -la buildroot/output/images/
+        sha256sum artifacts/* > artifacts/SHA256SUMS || echo "No artifacts to checksum"
 
     - name: Upload artifacts
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: pppwn-live-${{ matrix.arch }}
-        path: artifacts/
+        path: pppwn_live/artifacts/
         retention-days: 30
