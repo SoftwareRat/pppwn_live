@@ -81,7 +81,7 @@ jobs:
         echo "Current directory: $PWD"
         echo "Parent directory contents:"
         ls -la ..
-        make BR2_EXTERNAL=.. pppwn_${{ matrix.arch }}_defconfig
+        make BR2_EXTERNAL=${GITHUB_WORKSPACE} pppwn_${{ matrix.arch }}_defconfig
         if [ $? -ne 0 ]; then
           echo "Error: Failed to apply defconfig"
           exit 1
