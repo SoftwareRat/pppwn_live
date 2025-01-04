@@ -42,16 +42,16 @@ jobs:
 
     - name: Download Buildroot
       run: |
-      BUILDROOT_TAR="buildroot-${BUILDROOT_VERSION}.tar.gz"
-      wget "https://buildroot.org/downloads/${BUILDROOT_TAR}"
-      wget "https://buildroot.org/downloads/${BUILDROOT_TAR}.sign"
-      mkdir -p ~/.gnupg
-      gpg --batch --keyserver keyserver.ubuntu.com --recv-keys AB07D806D2CE741FB886EE50B025BA8B59C36319
-      gpg --batch --decrypt --output ${BUILDROOT_TAR}.txt ${BUILDROOT_TAR}.sign
-      awk '$1 == "SHA1:" && $2 ~ /^[0-9a-f]+$/ && $3 == "'"${BUILDROOT_TAR}"'" { print $2, "*'"${BUILDROOT_TAR}"'" }' ${BUILDROOT_TAR}.txt > ${BUILDROOT_TAR}.sha1
-      sha1sum -c ${BUILDROOT_TAR}.sha1
-      tar xf "${BUILDROOT_TAR}"
-      mv "buildroot-${BUILDROOT_VERSION}" buildroot
+        BUILDROOT_TAR="buildroot-${BUILDROOT_VERSION}.tar.gz"
+        wget "https://buildroot.org/downloads/${BUILDROOT_TAR}"
+        wget "https://buildroot.org/downloads/${BUILDROOT_TAR}.sign"
+        mkdir -p ~/.gnupg
+        gpg --batch --keyserver keyserver.ubuntu.com --recv-keys AB07D806D2CE741FB886EE50B025BA8B59C36319
+        gpg --batch --decrypt --output ${BUILDROOT_TAR}.txt ${BUILDROOT_TAR}.sign
+        awk '$1 == "SHA1:" && $2 ~ /^[0-9a-f]+$/ && $3 == "'"${BUILDROOT_TAR}"'" { print $2, "*'"${BUILDROOT_TAR}"'" }' ${BUILDROOT_TAR}.txt > ${BUILDROOT_TAR}.sha1
+        sha1sum -c ${BUILDROOT_TAR}.sha1
+        tar xf "${BUILDROOT_TAR}"
+        mv "buildroot-${BUILDROOT_VERSION}" buildroot
 
     - name: Configure and Build
       run: |
