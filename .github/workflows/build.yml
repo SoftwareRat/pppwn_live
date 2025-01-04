@@ -80,7 +80,7 @@ jobs:
         cd pppwn_live/buildroot
         echo "Current directory: $PWD"
         echo "Parent directory contents:"
-        ls -la ${GITHUB_WORKSPACE}
+        ls -la ${GITHUB_WORKSPACE}/pppwn_live
         make BR2_EXTERNAL=${GITHUB_WORKSPACE}/pppwn_live pppwn_${{ matrix.arch }}_defconfig
         if [ $? -ne 0 ]; then
           echo "Error: Failed to apply defconfig"
