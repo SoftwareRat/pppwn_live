@@ -70,6 +70,8 @@ jobs:
         echo "Config file contents:"
         ls -la configs/
         cat configs/pppwn_${{ matrix.arch }}_defconfig | head -n 10
+        echo "Package Config.in contents:"
+        cat package/pppwn/Config.in
         echo "BR2_EXTERNAL path:"
         echo $PWD
 
