@@ -1,0 +1,60 @@
+# Buildroot specific
+/output
+/dl
+/images
+/.auto.deps
+/.config.cmd
+/.config.old
+/..config.tmp
+/.config
+*.o
+*.pyc
+*.orig
+*.rej
+*~
+*.swp
+
+# Build system temps
+/build/
+/host/
+/staging/
+/target/
+/toolchain/
+
+# Local configurations
+/*.config
+local.mk
+*-local.mk
+
+# Environment and IDE
+.env*
+.vscode/
+.idea/
+*.sublime-*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Log files
+*.log
+.br2-external.mk
+
+# Custom package override
+/package/pkg-generic.mk.override
+
+# CT-NG build directories
+/build-toolchain/
+.config.old
+defconfig

@@ -1,0 +1,8 @@
+config BR2_PACKAGE_PPPWN
+    bool "pppwn"
+    depends on BR2_USE_MMU
+    help
+      PPPwn is a kernel remote code execution exploit for the PS4
+      that leverages a vulnerability in the FreeBSD network drivers.
+      
+      https://github.com/xfangfang/PPPwn_cpp

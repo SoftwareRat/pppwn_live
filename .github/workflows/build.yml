@@ -1,63 +1,69 @@
-name: Build PPPwn Live ISO
+name: Build PPPwnLive
 
 on:
   push:
     branches: [ main, dev ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ main ]
+
+env:
+  BUILDROOT_VERSION: 2024.02.9
 
 jobs:
   build:
+    name: Build PPPwnLive
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+
     steps:
-    - uses: actions/checkout@v3
-    
+    - uses: actions/checkout@v4
+
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential wget xorriso isolinux syslinux-utils \
-          libelf-dev bc flex bison libssl-dev dwarves zstd curl jq 7zip unzip \
-          git rsync
-    
-    - name: Make scripts executable
+        sudo apt-get install -y \
+          build-essential \
+          libncurses5-dev \
+          gcc-multilib \
+          wget \
+          unzip \
+          bc \
+          rsync \
+          file \
+          perl \
+          cpio \
+          gzip \
+          bzip2 \
+          patch \
+          tar \
+          findutils
+
+    - name: Download Buildroot
       run: |
-        chmod +x build_pppwn_iso.sh
-    
-    - name: Build ISO
-      env:
-        FORCE_UNSAFE_CONFIGURE: 1
-      run: ./build_pppwn_iso.sh
-    
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+        BUILDROOT_TAR="buildroot-${BUILDROOT_VERSION}.tar.gz"
+        wget "https://buildroot.org/downloads/${BUILDROOT_TAR}"
+        wget "https://buildroot.org/downloads/${BUILDROOT_TAR}.sign"
+        gpg --verify "${BUILDROOT_TAR}.sign" "${BUILDROOT_TAR}" || exit 1
+        tar xf "${BUILDROOT_TAR}"
+        mv "buildroot-${BUILDROOT_VERSION}" buildroot
+
+    - name: Configure and Build
+      run: |
+        cd buildroot || exit 1
+        make BR2_EXTERNAL=../ "pppwn_${{ matrix.arch }}_defconfig"
+        make -j$(nproc) || exit 1
+
+    - name: Prepare artifacts
+      run: |
+        mkdir -p artifacts
+        cp buildroot/output/images/rootfs.iso9660 artifacts/pppwn-live-${{ matrix.arch }}.iso
+        sha256sum artifacts/* > artifacts/SHA256SUMS
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
       with:
-        name: pppwn-live-output
-        path: pppwn_buildroot/buildroot-*/output/images/
-        if-no-files-found: error
-        
-    - name: Create Dev Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: pppwn_buildroot/buildroot-*/output/images/rootfs.iso9660
-        name: PPPwn Live (Development Build)
-        tag_name: dev-v${{ github.run_number }}
-        draft: false
-        prerelease: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Create Stable Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: pppwn_buildroot/buildroot-*/output/images/rootfs.iso9660
-        name: PPPwn Live
-        tag_name: v${{ github.run_number }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        name: pppwn-live-${{ matrix.arch }}
+        path: artifacts/
+        retention-days: 30
