@@ -1,8 +1,11 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Buildroot 2024.02.9 Configuration
+# Buildroot -g140f54a Configuration
 #
 BR2_HAVE_DOT_CONFIG=y
+BR2_EXTERNAL_NAMES="PPPWN_LIVE"
+BR2_EXTERNAL_PPPWN_LIVE_PATH="/home/turkkebab112/pppwn_live"
+BR2_EXTERNAL_PPPWN_LIVE_VERSION="-g140f54a"
 BR2_HOST_GCC_AT_LEAST_4_9=y
 BR2_HOST_GCC_AT_LEAST_5=y
 BR2_HOST_GCC_AT_LEAST_6=y
@@ -5083,3 +5086,12 @@ BR2_TARGET_UBOOT_CUSTOM_PATCH_DIR=""
 # BR2_BINUTILS_VERSION_2_22 is not set
 # BR2_PACKAGE_GPU_VIV_BIN_MX6Q is not set
 # BR2_TARGET_UBOOT_NETWORK is not set
+
+#
+# External options
+#
+
+#
+# PPPwnLive Environment for creating a bootable ISO  (in /home/turkkebab112/pppwn_live)
+#
+BR2_PACKAGE_PPPWN=y

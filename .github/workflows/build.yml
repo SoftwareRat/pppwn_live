@@ -40,6 +40,10 @@ jobs:
           tar \
           findutils
 
+    - name: Set script permissions
+      run: |
+        chmod +x board/pppwn/post-build.sh
+
     - name: Download Buildroot
       run: |
         BUILDROOT_TAR="buildroot-${BUILDROOT_VERSION}.tar.gz"
@@ -57,7 +61,6 @@ jobs:
       run: |
         cd buildroot || exit 1
         make BR2_EXTERNAL=.. pppwn_${{ matrix.arch }}_defconfig
-        make -j$(nproc) || exit 1
 
     - name: Prepare artifacts
       run: |
