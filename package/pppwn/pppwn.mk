@@ -5,6 +5,8 @@
 ################################################################################
 
 PPPWN_VERSION = latest
+PPPWN_SITE = $(PPPWN_PKGDIR)/binaries
+PPPWN_SOURCE = $(PPPWN_BINARY_ZIP)
 PPPWN_LICENSE = GPL-3.0
 PPPWN_LICENSE_FILES = LICENSE
 PPPWN_DEPENDENCIES = host-jq
@@ -18,7 +20,7 @@ endif
 
 define PPPWN_EXTRACT_CMDS
     # Extract PPPwn binary
-    $(UNZIP) -d $(@D) $(PPPWN_PKGDIR)/binaries/$(PPPWN_BINARY_ZIP)
+    $(UNZIP) -d $(@D) $(PPPWN_DL_DIR)/$(PPPWN_SOURCE)
     tar xf $(@D)/pppwn.tar.gz -C $(@D)
     
     # Download stage1.bin
