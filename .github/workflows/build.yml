@@ -61,6 +61,7 @@ jobs:
       run: |
         cd buildroot || exit 1
         make BR2_EXTERNAL=.. pppwn_${{ matrix.arch }}_defconfig
+        make -j$(nproc)
 
     - name: Prepare artifacts
       run: |
