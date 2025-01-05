@@ -1,1 +1,1 @@
-source "$(BR2_EXTERNAL_PPPWN_LIVE_PATH)/package/pppwn/Config.in"
+source "${BR2_EXTERNAL_PPPWN_LIVE_PATH}/package/pppwn/Config.in"
