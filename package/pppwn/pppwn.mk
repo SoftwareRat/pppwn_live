@@ -7,6 +7,7 @@
 PPPWN_VERSION = latest
 PPPWN_SITE_METHOD = local
 PPPWN_SITE = $(BR2_EXTERNAL_PPPWN_LIVE_PATH)/package/pppwn/binaries
+PPPWN_SOURCE = $(PPPWN_BINARY_ZIP)
 PPPWN_LICENSE = GPL-3.0
 PPPWN_LICENSE_FILES = LICENSE
 PPPWN_DEPENDENCIES = host-jq
@@ -20,28 +21,8 @@ endif
 
 define PPPWN_EXTRACT_CMDS
     # Extract PPPwn binary (two-step extraction: zip -> tar.gz -> binary)
-    if [ ! -f $(PPPWN_SITE)/$(PPPWN_BINARY_ZIP) ]; then \
-        echo "Error: Binary zip file not found: $(PPPWN_SITE)/$(PPPWN_BINARY_ZIP)"; \
-        exit 1; \
-    fi
-    
-    # Extract zip file
-    unzip -o -d $(@D) $(PPPWN_SITE)/$(PPPWN_BINARY_ZIP) || exit 1
-    
-    # Verify tar.gz was extracted
-    if [ ! -f $(@D)/pppwn.tar.gz ]; then \
-        echo "Error: pppwn.tar.gz not found after zip extraction"; \
-        exit 1; \
-    fi
-    
-    # Extract tar.gz to get binary
+    unzip -o -d $(@D) $(@D)/$(PPPWN_BINARY_ZIP) || exit 1
     cd $(@D) && tar xf pppwn.tar.gz || exit 1
-    
-    # Verify binary was extracted with correct permissions
-    if [ ! -x $(@D)/pppwn ]; then \
-        echo "Error: pppwn binary not found or not executable"; \
-        exit 1; \
-    fi
     
     # Download stage1.bin
     wget -O $(@D)/stage1.bin \
@@ -55,15 +36,7 @@ define PPPWN_EXTRACT_CMDS
     cd $(@D) && mv stage2_11.00.bin stage2.bin
     
     # Clean up temporary files
-    cd $(@D) && rm -f GoldHEN.7z stage2_v*.7z pppwn.tar.gz
-    
-    # Verify all required files exist
-    for file in pppwn stage1.bin stage2.bin; do \
-        if [ ! -f $(@D)/$$file ]; then \
-            echo "Error: Required file $$file not found"; \
-            exit 1; \
-        fi \
-    done
+    cd $(@D) && rm -f GoldHEN.7z stage2_v*.7z pppwn.tar.gz $(PPPWN_BINARY_ZIP)
 endef
 
 define PPPWN_INSTALL_TARGET_CMDS
