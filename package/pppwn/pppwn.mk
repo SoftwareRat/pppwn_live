@@ -7,7 +7,6 @@
 PPPWN_VERSION = latest
 PPPWN_SITE_METHOD = local
 PPPWN_SITE = $(BR2_EXTERNAL_PPPWN_LIVE_PATH)/package/pppwn/binaries
-PPPWN_SOURCE = $(PPPWN_BINARY_ZIP)
 PPPWN_LICENSE = GPL-3.0
 PPPWN_LICENSE_FILES = LICENSE
 PPPWN_DEPENDENCIES = host-jq
@@ -19,7 +18,10 @@ else ifeq ($(BR2_aarch64),y)
 PPPWN_BINARY_ZIP = aarch64-linux-musl.zip
 endif
 
-define PPPWN_EXTRACT_CMDS
+# Define source after PPPWN_BINARY_ZIP is set
+PPPWN_SOURCE = $(PPPWN_BINARY_ZIP)
+
+define PPPWN_BUILD_CMDS
     # Extract PPPwn binary (two-step extraction: zip -> tar.gz -> binary)
     echo "Contents of build directory before extraction:"
     ls -la $(@D)
