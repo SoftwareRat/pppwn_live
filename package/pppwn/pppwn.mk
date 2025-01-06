@@ -5,8 +5,8 @@
 ################################################################################
 
 PPPWN_VERSION = latest
-PPPWN_SITE = $(PPPWN_PKGDIR)/binaries
-PPPWN_SOURCE = $(PPPWN_BINARY_ZIP)
+PPPWN_SITE_METHOD = local
+PPPWN_SITE = $(BR2_EXTERNAL_PPPWN_LIVE_PATH)/package/pppwn/binaries
 PPPWN_LICENSE = GPL-3.0
 PPPWN_LICENSE_FILES = LICENSE
 PPPWN_DEPENDENCIES = host-jq
@@ -20,9 +20,10 @@ endif
 
 define PPPWN_EXTRACT_CMDS
     # Extract PPPwn binary
-    $(UNZIP) -d $(@D) $(PPPWN_DL_DIR)/$(PPPWN_SOURCE)
+    $(UNZIP) -d $(@D) $(PPPWN_SITE)/$(PPPWN_BINARY_ZIP)
     tar xf $(@D)/pppwn.tar.gz -C $(@D)
     
+    ## For copyright reasons, we need to download the stage1.bin and stage2.bin files separately
     # Download stage1.bin
     $(HOST_DIR)/bin/wget -O $(@D)/stage1.bin \
         "https://github.com/B-Dem/PPPwnUI/raw/main/PPPwn/goldhen/1100/stage1.bin"
