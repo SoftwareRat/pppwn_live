@@ -9,7 +9,7 @@ PPPWN_SITE_METHOD = local
 PPPWN_SITE = $(BR2_EXTERNAL_PPPWN_LIVE_PATH)/package/pppwn/binaries
 PPPWN_LICENSE = GPL-3.0
 PPPWN_LICENSE_FILES = LICENSE
-PPPWN_DEPENDENCIES = host-jq host-wget host-curl host-p7zip
+PPPWN_DEPENDENCIES = host-jq
 
 # Define architecture-specific zip file
 ifeq ($(BR2_x86_64),y)
