@@ -21,8 +21,21 @@ endif
 
 define PPPWN_EXTRACT_CMDS
     # Extract PPPwn binary (two-step extraction: zip -> tar.gz -> binary)
+    echo "Contents of build directory before extraction:"
+    ls -la $(@D)
+    
+    echo "Extracting $(PPPWN_BINARY_ZIP)..."
     unzip -o -d $(@D) $(@D)/$(PPPWN_BINARY_ZIP) || exit 1
-    cd $(@D) && tar xf pppwn.tar.gz || exit 1
+    
+    echo "Contents after zip extraction:"
+    ls -la $(@D)
+    
+    echo "Extracting tar.gz..."
+    cd $(@D) && tar xvf pppwn.tar.gz || exit 1
+    
+    echo "Contents after tar extraction:"
+    ls -la $(@D)
+    find $(@D) -name pppwn -type f
     
     # Download stage1.bin
     wget -O $(@D)/stage1.bin \
@@ -37,9 +50,16 @@ define PPPWN_EXTRACT_CMDS
     
     # Clean up temporary files
     cd $(@D) && rm -f GoldHEN.7z stage2_v*.7z pppwn.tar.gz $(PPPWN_BINARY_ZIP)
+    
+    echo "Final contents of build directory:"
+    ls -la $(@D)
 endef
 
 define PPPWN_INSTALL_TARGET_CMDS
+    echo "Contents of build directory during install:"
+    ls -la $(@D)
+    find $(@D) -name pppwn -type f
+    
     # Install binary with execute permissions
     $(INSTALL) -D -m 0755 $(@D)/pppwn $(TARGET_DIR)/usr/bin/pppwn
     
