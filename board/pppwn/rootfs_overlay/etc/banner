@@ -8,6 +8,8 @@
 Welcome to PPPwnLive! Please make sure to have your Ethernet cable plugged in and connected to the PlayStation 4.
 
 Credits:
+- SoftwareRat (https://github.com/SoftwareRat/pppwn_live) for creating this project
 - xfangfang (https://github.com/xfangfang/PPPwn_cpp) for developing the C++ version of PPPwn
 - TheFloW (https://github.com/TheOfficialFloW/PPPwn) for the original discovery and creation of PPPwn
 - SiSTR0 (https://github.com/GoldHEN/GoldHEN) for developing GoldHEN
+
