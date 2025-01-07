@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Buildroot -g140f54a Configuration
+# Buildroot -g842b22d-dirty Configuration
 #
 BR2_HAVE_DOT_CONFIG=y
 BR2_HOST_GCC_AT_LEAST_4_9=y
@@ -504,7 +504,7 @@ BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_PPPWN_LIVE_PATH)/board/pppwn/rootfs_overlay"
 BR2_ROOTFS_PRE_BUILD_SCRIPT=""
 BR2_ROOTFS_POST_BUILD_SCRIPT="board/pc/post-build.sh $(BR2_EXTERNAL_PPPWN_LIVE_PATH)/board/pppwn/post-build.sh"
 BR2_ROOTFS_POST_FAKEROOT_SCRIPT=""
-BR2_ROOTFS_POST_IMAGE_SCRIPT="board/pc/post-image-efi.sh"
+BR2_ROOTFS_POST_IMAGE_SCRIPT=""
 BR2_ROOTFS_POST_SCRIPT_ARGS=""
 
 #
@@ -4127,14 +4127,14 @@ BR2_TARGET_GRUB2_X86_64_EFI=y
 #
 # Options for the x86 legacy BIOS or ARM U-Boot support
 #
-BR2_TARGET_GRUB2_BOOT_PARTITION="hd0,msdos1"
-BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal biosdisk"
+BR2_TARGET_GRUB2_BOOT_PARTITION="cd0"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_PC="boot linux ext2 fat squash4 part_msdos part_gpt normal biosdisk iso9660 search search_fs_file search_fs_uuid search_label"
 BR2_TARGET_GRUB2_BUILTIN_CONFIG_PC=""
 
 #
 # Options for the EFI BIOS or ARM EFI support
 #
-BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop"
+BR2_TARGET_GRUB2_BUILTIN_MODULES_EFI="boot linux ext2 fat squash4 part_msdos part_gpt normal efi_gop iso9660 search search_fs_file search_fs_uuid search_label"
 BR2_TARGET_GRUB2_BUILTIN_CONFIG_EFI=""
 # BR2_TARGET_GRUB2_INSTALL_TOOLS is not set
 BR2_PACKAGE_SHIM_ARCH_SUPPORTS=y
