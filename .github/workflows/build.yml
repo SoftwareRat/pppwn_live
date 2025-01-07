@@ -38,6 +38,7 @@ jobs:
           bzip2 \
           patch \
           tar \
+          7zip \
           findutils
 
     - name: Set script permissions

@@ -1,18 +1,13 @@
-=======================================================
-  _____  _____  _____                 _      _           
- |  __ \|  __ \|  __ \               | |    (_)          
- | |__) | |__) | |__) |_      ___ __ | |     ___   _____ 
- |  ___/|  ___/|  ___/\ \ /\ / / '_ \| |    | \ \ / / _ \
- | |    | |    | |     \ V  V /| | | | |____| |\ V /  __/
- |_|    |_|    |_|      \_/\_/ |_| |_|______|_| \_/ \___|
-                                                         
-                    x64 Version v1.0
-=======================================================
-                    CREDITS
--------------------------------------------------------
-    GoldHEN Team - PS4 Payload
-    TheFlow - PPPoE Exploit Discovery
-    xfangfang - PPPWN_CPP Development
+===============================================
+▗▄▄▖ ▗▄▄▖ ▗▄▄▖ ▗▖ ▗▖▗▖  ▗▖▗▖   ▗▄▄▄▖▗▖  ▗▖▗▄▄▄▖
+▐▌ ▐▌▐▌ ▐▌▐▌ ▐▌▐▌ ▐▌▐▛▚▖▐▌▐▌     █  ▐▌  ▐▌▐▌   
+▐▛▀▘ ▐▛▀▘ ▐▛▀▘ ▐▌ ▐▌▐▌ ▝▜▌▐▌     █  ▐▌  ▐▛▀▀▘
+▐▌   ▐▌   ▐▌   ▐▙█▟▌▐▌  ▐▌▐▙▄▄▖▗▄█▄▖ ▝▚▞▘ ▐▙▄▄▖
+===============================================
 
-Welcome! To use PPPwnLive. Connect your PS4 to this PC using a LAN cable
-=======================================================
+Welcome to PPPwnLive! Please make sure to have your Ethernet cable plugged in and connected to the PlayStation 4.
+
+Credits:
+- xfangfang (https://github.com/xfangfang/PPPwn_cpp) for developing the C++ version of PPPwn
+- TheFloW (https://github.com/TheOfficialFloW/PPPwn) for the original discovery and creation of PPPwn
+- SiSTR0 (https://github.com/GoldHEN/GoldHEN) for developing GoldHEN
