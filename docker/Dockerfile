@@ -2,6 +2,7 @@ FROM alpine:latest
 
 # Default firmware version
 ARG FIRMWARE_VERSION=1100
+ARG INTERFACE=eth0
 
 # Install necessary dependencies and download PPPwn++
 RUN apk add --no-cache bash wget curl unzip tar && \
