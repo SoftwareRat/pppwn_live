@@ -18,4 +18,4 @@ if [ ! -f "/opt/pppwn/stage1.bin" ] || [ ! -f "/opt/pppwn/stage2.bin" ]; then
 fi
 
 # Run PPPwn++
-/opt/pppwn/pppwn -i eth0 --fw $FIRMWARE_VERSION --stage1 /opt/pppwn/stage1.bin --stage2 /opt/pppwn/stage2.bin -a
+/opt/pppwn/pppwn -i ${INTERFACE:-eth0} --fw $FIRMWARE_VERSION --stage1 /opt/pppwn/stage1.bin --stage2 /opt/pppwn/stage2.bin -a
