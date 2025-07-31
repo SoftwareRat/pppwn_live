@@ -1,53 +1,23 @@
 #!/bin/sh
-#
-# Network Interface Detection Script for PPPwn Live System
-# Detects and configures Ethernet interfaces for PS4 communication
-#
 
-# Source configuration
-CONFIG_FILE="/etc/pppwn/config"
-if [ -f "$CONFIG_FILE" ]; then
-    # Parse simple key=value config
-    eval $(grep -E '^[a-zA-Z_][a-zA-Z0-9_]*=' "$CONFIG_FILE" | sed 's/^/export /')
-fi
-
-# Default values if not set in config
-INTERFACE_PATTERNS="${interface_patterns:-eth*,en*}"
-DHCP_TIMEOUT="${dhcp_timeout:-30}"
-DETECTION_RETRIES="${detection_retries:-3}"
-LINK_UP_DELAY="${link_up_delay:-2}"
-PS4_SCAN_TIMEOUT="${ps4_scan_timeout:-10}"
-
-# Logging function with error handling integration
-log_message() {
-    echo "[$(date '+%H:%M:%S')] $1"
-    logger -t network-detector "$1"
-    
-    # Also log to debug system if available
-    if command -v error-handler >/dev/null 2>&1; then
-        /usr/bin/error-handler debug "$1" "network-detector"
+# Find first ethernet interface
+for iface in /sys/class/net/eth* /sys/class/net/en*; do
+    if [ -d "$iface" ]; then
+        INTERFACE=$(basename "$iface")
+        echo "Found interface: $INTERFACE"
+        
+        # Configure interface
+        ip link set "$INTERFACE" up
+        ip addr add 192.168.1.2/24 dev "$INTERFACE"
+        
+        echo "$INTERFACE" > /tmp/pppwn_interface
+        exit 0
     fi
-}
+done
 
-# Function to detect PS4-compatible interfaces with prioritization
-detect_ps4_interface() {
-    local patterns=$(echo "$INTERFACE_PATTERNS" | tr ',' ' ')
-    local found_interfaces=""
-    local prioritized_interface=""
-    
-    log_message "Scanning for Ethernet interfaces..."
-    
-    # First pass: collect all available Ethernet interfaces
-    for pattern in $patterns; do
-        # Use shell globbing to match interface patterns
-        for iface in /sys/class/net/$pattern; do
-            if [ -d "$iface" ]; then
-                iface_name=$(basename "$iface")
-                
-                # Skip loopback and wireless interfaces
-                if [ "$iface_name" = "lo" ] || [ -d "/sys/class/net/$iface_name/wireless" ]; then
-                    continue
-                fi
+echo "No ethernet interface found"
+echo "error" > /tmp/pppwn_error
+exit 1
                 
                 # Check if it's an Ethernet interface
                 if [ -f "/sys/class/net/$iface_name/type" ]; then

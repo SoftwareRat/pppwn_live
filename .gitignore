@@ -22,56 +22,8 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-# Buildroot build artifacts and temporary files
-buildroot/
-output/
-dl/
-host/
-build/
-target/
-staging/
-images/
-.config
-.config.old
-.auto.deps
-.br2-external.mk
-
 # Build artifacts
-*.o
-*.a
-*.so
-*.so.*
-*.ko
-*.mod.c
-*.symvers
-*.order
-*.tmp
-
-# ISO image files
+buildroot/
 *.iso
 *.img
-
-# Log files
 *.log
-build.log
-config.log
-
-# Temporary files
-*~
-*.swp
-*.swo
-.tmp/
-tmp/
-
-# Editor backup files
-*#
-.#*
-
-# Compressed files (build artifacts)
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.zip
-
-# Keep old_pppwnlive for reference during transition
-# old_pppwnlive/ - Removed as per requirements
