@@ -1,174 +1,219 @@
-# PPPwnLive
+# PPPwn Live ISO
 
-`pppwn_live` is a Linux live ISO based on Alpine Linux, designed to run [pppwn_cpp](https://github.com/xfangfang/PPPwn_cpp), a PS4 exploit, directly from the ISO on any PC. The system automatically shuts down after completing its tasks.
+`pppwn_live` is a Buildroot-based Linux live ISO designed to automatically execute the [PPPwn](https://github.com/TheOfficialFloW/PPPwn) PS4 exploit using [pppwn_cpp](https://github.com/xfangfang/PPPwn_cpp). The system provides a minimal, secure, and automated environment that boots from any x64 PC and automatically shuts down after completing the exploit.
 
 ## Table of Contents
 - [Features](#features)
 - [Requirements](#requirements)
+- [Quick Start](#quick-start)
 - [Usage](#usage)
-  - [ISO Usage](#iso-usage)
-  - [Docker Usage](#docker-usage)
-    - [Docker CLI](#docker-cli)
-    - [Docker Compose](#docker-compose)
-    - [Building Docker Images Manually](#building-docker-images-manually)
-- [Screenshots](#screenshots)
-- [Development](#development)
-  - [Prerequisites](#prerequisites)
-  - [Preparing the Custom Files](#preparing-the-custom-files)
-  - [Build the ISO](#build-the-iso)
+  - [Creating Bootable Media](#creating-bootable-media)
+  - [Booting and Execution](#booting-and-execution)
+  - [Troubleshooting](#troubleshooting)
+- [Supported Firmware Versions](#supported-firmware-versions)
+- [Build from Source](#build-from-source)
+- [System Architecture](#system-architecture)
+- [Security Features](#security-features)
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgments](#acknowledgments)
 
 ## Features
 
-- Lightweight live ISO based on [Alpine Linux](https://alpinelinux.org/)
-- Includes and automatically runs [pppwn_cpp](https://github.com/xfangfang/PPPwn_cpp)
-- Designed for easy execution on any PC
-- Automatic shutdown after task completion
+- **Minimal Buildroot-based system** - Optimized for size and security
+- **Automatic hardware detection** - Detects and configures network interfaces
+- **PS4 console detection** - Automatically connects to PlayStation 4 consoles
+- **Real-time status display** - Clear progress indicators and user guidance
+- **Automatic shutdown** - Secure shutdown after successful exploit completion
+- **Error recovery** - Comprehensive error handling with recovery options
+- **Security hardening** - Memory clearing and minimal attack surface
+- **CI/CD integration** - Automated builds with GitHub Actions
 
 ## Requirements
 
-- PC with USB port or CD/DVD drive
-- USB drive or CD/DVD for bootable media
-- Ethernet cable and port on the PC running PPPwnLive
-- Basic knowledge of booting from external media
-- If using Docker:
-   - PlayStation 4 console running **firmware versions 9.00, 9.60, 10.00, 10.01, or 11.00**
-- If using live ISO:
-   - PlayStation 4 console running **firmware version 11.00** only
+### Hardware Requirements
+- x64 PC with at least 512MB RAM
+- USB port or CD/DVD drive for bootable media
+- Ethernet port and cable
+- PlayStation 4 console with supported firmware
+
+### PlayStation 4 Requirements
+- PS4 console running firmware version **9.00, 9.60, 10.00, 10.01, or 11.00**
+- Ethernet cable to connect PS4 to PC
+- PS4 should be in rest mode or powered off initially
+
+## Quick Start
+
+1. **Download the latest ISO** from the [releases page](https://github.com/your-org/pppwn-live-iso/releases)
+2. **Create bootable media** using Ventoy, Rufus, or dd
+3. **Connect PS4 to PC** via Ethernet cable
+4. **Boot from the media** and follow on-screen instructions
+5. **Wait for automatic completion** and shutdown
 
 ## Usage
 
-### ISO Usage
+### Creating Bootable Media
 
-1. **Download the ISO:**
-   Get the latest ISO from the [releases page](https://github.com/SoftwareRat/pppwn_live/releases). Choose the x64 version for Intel/AMD processors or the aarch64 version for ARM-based processors, depending on your PC architecture.
+#### Using Ventoy (Recommended)
+1. Download [Ventoy](https://www.ventoy.net/en/doc_start.html)
+2. Install Ventoy to your USB drive
+3. Copy the ISO file to the USB drive
+4. Boot from USB and select the ISO
 
-2. **Create Bootable Media:**
-   - For USB: Use [Ventoy](https://www.ventoy.net/en/doc_start.html) (all desktop operating systems), [Rufus](https://rufus.ie/) (Windows), or `dd` (Linux/Mac):
-     ```bash
-     sudo dd if=pppwn_live.iso of=/dev/sdX bs=4M
-     sync
-     ```
+#### Using Rufus (Windows)
+1. Download [Rufus](https://rufus.ie/)
+2. Select your USB drive and the downloaded ISO
+3. Click "START" to create bootable media
 
-     Replace `/dev/sdX` with your USB drive identifier.
-
-   - For CD/DVD: Burn the ISO using your preferred software.
-
-3. **Boot from Media:**
-   - Insert the bootable media and restart your PC.
-   - Enter BIOS/UEFI (usually F2, F12, Delete, or Esc during startup).
-   - Set boot priority to your bootable media.
-   - Save and exit BIOS/UEFI.
-
-4. **Run pppwn_cpp:**
-   The system will automatically start and run `pppwn_cpp`. Follow on-screen instructions.
-
-5. **Automatic Shutdown:**
-   The system will shut down automatically after completing its tasks.
-
-### Docker Usage
-
-#### Docker CLI
-
-1. **Pull the Docker Image:**
-   Get the latest Docker image from [Docker Hub](https://hub.docker.com/r/softwarerat/pppwn_live/tags):
-   ```bash
-   docker pull softwarerat/pppwn_live:latest
-   ```
-
-2. **Run the Docker Container:**
-   Start the container with the desired firmware version using the `FIRMWARE_VERSION` environment variable:
-   ```bash
-   docker run --rm -e FIRMWARE_VERSION=1100 --network host softwarerat/pppwn_live
-   ```
-   Replace `1100` with the firmware version you need.
-
-3. **Automatic Shutdown:**
-   The container will run `pppwn_cpp` and automatically shut down after completing its tasks.
-
-#### Docker Compose
-
-1. **Use the Existing `docker-compose.yml` File:**
-   The `docker-compose.yml` file is located in the `docker` folder of the repository. Use the following configuration:
-   ```yaml
-   version: '3'
-
-   services:
-     pppwn:
-       image: softwarerat/pppwn_live:latest
-       environment:
-         - FIRMWARE_VERSION=1100
-       network_mode: host
-       restart: unless-stopped
-   ```
-
-2. **Start the Docker Compose Service:**
-   Run the following command from the root of the repository:
-   ```bash
-   docker-compose -f docker/docker-compose.yml up
-   ```
-   Replace `1100` with the firmware version you need. The service will automatically shut down after completing its tasks.
-
-#### Building Docker Images Manually
-
-1. **Use the Existing `Dockerfile`:**
-   The `Dockerfile` is located in the `docker` folder of the repository. If you need to build the Docker image manually, use the following command from the root of the repository:
-   ```bash
-   docker build -f docker/Dockerfile -t pppwn_image .
-   ```
-
-2. **Run the Docker Container:**
-   Use the following command to start the container:
-   ```bash
-   docker run --rm -e FIRMWARE_VERSION=1100 --network host pppwn_image
-   ```
-   Replace `1100` with the firmware version you need.
-
-## Screenshots
-![Screenshot of PPPwnLive ISO booted, showing a terminal interface with system information and instructions](images/screenshot.png)
-
-## Development
-
-If you'd like to create the ISO yourself, follow these steps:
-
-### Prerequisites
-
-You'll need an Alpine Linux system with the following packages installed:
-
+#### Using dd (Linux/macOS)
 ```bash
-apk add --no-cache alpine-sdk alpine-conf xorriso squashfs-tools grub grub-efi doas alpine-base busybox openrc bash agetty
+sudo dd if=pppwn_live.iso of=/dev/sdX bs=4M status=progress
+sync
+```
+Replace `/dev/sdX` with your USB drive identifier.
+
+### Booting and Execution
+
+1. **Insert bootable media** and restart your PC
+2. **Enter BIOS/UEFI** (usually F2, F12, Delete, or Esc during startup)
+3. **Set boot priority** to your bootable media
+4. **Save and exit** BIOS/UEFI
+
+The system will automatically:
+- Boot into the PPPwn Live environment
+- Display a welcome banner with instructions
+- Detect available network interfaces
+- Configure network settings for PS4 communication
+- Wait for PS4 console connection
+- Execute the PPPwn exploit when PS4 is detected
+- Display real-time status and progress
+- Shut down automatically after successful completion
+
+### Troubleshooting
+
+#### Common Issues
+
+**No network interfaces detected:**
+- Ensure your PC has a working Ethernet port
+- Try different Ethernet cables
+- Check if network drivers are loaded (most common drivers included)
+
+**PS4 not detected:**
+- Ensure PS4 is connected via Ethernet cable
+- Put PS4 in rest mode or power it off completely
+- Wait for the system to detect the console (may take 1-2 minutes)
+- Try restarting the PS4 if detection fails
+
+**Exploit execution fails:**
+- Verify your PS4 firmware version is supported
+- Ensure stable network connection
+- The system will automatically retry failed attempts
+- Check the error messages for specific guidance
+
+**System hangs or freezes:**
+- Wait at least 5 minutes before considering it frozen
+- If frozen, restart and try again
+- Some hardware may require specific boot parameters
+
+#### Advanced Troubleshooting
+
+**Emergency shell access:**
+If you need to troubleshoot manually, you can access an emergency shell:
+1. During boot, press `Ctrl+C` when prompted
+2. This provides root shell access for advanced users
+3. Use `pppwn-runner --help` for manual execution options
+
+**Verbose output:**
+For detailed debugging information:
+1. Edit boot parameters and add `debug=1`
+2. This enables verbose logging and status output
+
+## Supported Firmware Versions
+
+| PS4 Firmware | Status | Notes |
+|--------------|--------|-------|
+| 9.00         | ✅ Supported | Stable |
+| 9.60         | ✅ Supported | Stable |
+| 10.00        | ✅ Supported | Stable |
+| 10.01        | ✅ Supported | Stable |
+| 11.00        | ✅ Supported | Stable |
+| Other        | ❌ Not supported | Use official PPPwn tools |
+
+## Build from Source
+
+See [BUILD.md](BUILD.md) for detailed build instructions.
+
+### Quick Build
+```bash
+# Clone repository
+git clone https://github.com/your-org/pppwn-live-iso.git
+cd pppwn-live-iso
+
+# Build ISO
+make pppwn_defconfig
+make all
+
+# ISO will be available at output/images/pppwn_live.iso
 ```
 
-### Preparing the Custom Files
+## System Architecture
 
-1. Copy the content of the custom folder in this repository to `aports/scripts`.
-2. Create the `pppwn.tar.gz` file: This archive should have the following structure:
+PPPwn Live ISO uses a Buildroot-based architecture for minimal size and maximum security:
 
-```bash
-tar -ztvf pppwn.tar.gz
--rwxr-xr-x  0 username group  452780 May 20 00:10 pppwnlive/pppwn
--rw-r--r--  0 username group     500 Sep  5 15:43 pppwnlive/stage1.bin
--rw-r--r--  0 username group    2705 Sep  5 15:43 pppwnlive/stage2.bin
-```
-- `pppwn` is the `pppwn_cpp` binary, which must be downloaded or compiled for your desired architecture.
-- `stage1.bin` and `stage2.bin` are the required payloads, the pre-created ones use GoldHEN which you can download from [B-Dem's PPPwnUI](https://github.com/B-Dem/PPPwnUI/tree/main/PPPwn/goldhen/1100).
-- After creating `pppwn.tar.gz`, copy it to the `aports/scripts` folder.
+- **Base System**: Buildroot 2025.05 with minimal Linux kernel
+- **PPPwn Integration**: Custom Buildroot packages for PPPwn components
+- **Network Stack**: Optimized for PS4 communication protocols
+- **User Interface**: Console-based with clear status indicators
+- **Security**: Memory clearing, minimal services, automatic shutdown
 
-### Build the ISO
+### Key Components
 
-To create the ISO, run the following command from the root of the repository:
+- `pppwn-cpp`: Main exploit binary
+- `network-detector`: Automatic network interface detection
+- `pppwn-runner`: Exploit execution coordinator
+- `status-display`: User interface and progress reporting
+- `security-hardening`: System security measures
 
-```bash
-sh aports/scripts/mkimage.sh --tag edge --outdir <your desired ISO output path> --arch <your desired architecture> --repository https://dl-cdn.alpinelinux.org/alpine/edge/main --profile pppwn
-```
+## Security Features
 
-Replace `<your desired ISO output path>` and `<your desired architecture>` with appropriate values.
+- **Minimal attack surface**: Only essential components included
+- **Memory clearing**: Sensitive data cleared on shutdown
+- **Read-only filesystem**: Core system files protected
+- **Automatic shutdown**: Prevents unauthorized access after completion
+- **No persistent storage**: Runs entirely from memory
+- **Network isolation**: Only PS4 communication protocols enabled
 
 ## Contributing
 
-Contributions are welcome! Please fork the repository and submit a pull request. For major changes, open an issue first to discuss proposed changes.
+Contributions are welcome! Please see our contribution guidelines:
+
+1. **Fork the repository** and create a feature branch
+2. **Follow coding standards** and include tests where applicable
+3. **Update documentation** for any user-facing changes
+4. **Submit a pull request** with a clear description of changes
+
+### Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/your-org/pppwn-live-iso.git
+cd pppwn-live-iso
+
+# Set up development environment
+make pppwn_defconfig
+make menuconfig  # Optional: customize configuration
+
+# Build and test
+make all
+```
+
+### Reporting Issues
+
+When reporting issues, please include:
+- PC hardware specifications
+- PS4 firmware version
+- Error messages or screenshots
+- Steps to reproduce the issue
 
 ## License
 
@@ -176,7 +221,12 @@ This project is licensed under the [GNU General Public License v3.0](LICENSE).
 
 ## Acknowledgments
 
-- [Alpine Linux](https://alpinelinux.org/) for their lightweight distribution
-- [xfangfang](https://github.com/xfangfang/PPPwn_cpp) for developing the C++ version of PPPwn
-- [TheFloW](https://github.com/TheOfficialFloW/PPPwn) for the original discovery and creation of PPPwn
-- [SiSTRo](https://github.com/SiSTR0) and the [GoldHEN Team](https://github.com/GoldHEN/GoldHEN) for developing GoldHEN, the PS4 Homebrew Enabler used in this project
+- **[TheOfficialFloW](https://github.com/TheOfficialFloW/PPPwn)** - Original PPPwn discovery and development
+- **[xfangfang](https://github.com/xfangfang/PPPwn_cpp)** - PPPwn C++ implementation
+- **[Buildroot Project](https://buildroot.org/)** - Embedded Linux build system
+- **[SiSTRo](https://github.com/SiSTR0) and [GoldHEN Team](https://github.com/GoldHEN/GoldHEN)** - GoldHEN homebrew enabler
+- **Community contributors** - Testing, feedback, and improvements
+
+---
+
+**⚠️ Disclaimer**: This tool is for educational and research purposes only. Users are responsible for complying with applicable laws and console terms of service. The developers are not responsible for any damage or legal consequences resulting from the use of this software.

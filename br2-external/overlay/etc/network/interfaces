@@ -1,0 +1,5 @@
+auto lo
+iface lo inet loopback
+
+# Ethernet interfaces will be configured dynamically by network detection script
+# This file serves as a template for interface configuration

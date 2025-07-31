@@ -1,0 +1,412 @@
+#!/bin/sh
+#
+# Network Interface Detection Script for PPPwn Live System
+# Detects and configures Ethernet interfaces for PS4 communication
+#
+
+# Source configuration
+CONFIG_FILE="/etc/pppwn/config"
+if [ -f "$CONFIG_FILE" ]; then
+    # Parse simple key=value config
+    eval $(grep -E '^[a-zA-Z_][a-zA-Z0-9_]*=' "$CONFIG_FILE" | sed 's/^/export /')
+fi
+
+# Default values if not set in config
+INTERFACE_PATTERNS="${interface_patterns:-eth*,en*}"
+DHCP_TIMEOUT="${dhcp_timeout:-30}"
+DETECTION_RETRIES="${detection_retries:-3}"
+LINK_UP_DELAY="${link_up_delay:-2}"
+PS4_SCAN_TIMEOUT="${ps4_scan_timeout:-10}"
+
+# Logging function with error handling integration
+log_message() {
+    echo "[$(date '+%H:%M:%S')] $1"
+    logger -t network-detector "$1"
+    
+    # Also log to debug system if available
+    if command -v error-handler >/dev/null 2>&1; then
+        /usr/bin/error-handler debug "$1" "network-detector"
+    fi
+}
+
+# Function to detect PS4-compatible interfaces with prioritization
+detect_ps4_interface() {
+    local patterns=$(echo "$INTERFACE_PATTERNS" | tr ',' ' ')
+    local found_interfaces=""
+    local prioritized_interface=""
+    
+    log_message "Scanning for Ethernet interfaces..."
+    
+    # First pass: collect all available Ethernet interfaces
+    for pattern in $patterns; do
+        # Use shell globbing to match interface patterns
+        for iface in /sys/class/net/$pattern; do
+            if [ -d "$iface" ]; then
+                iface_name=$(basename "$iface")
+                
+                # Skip loopback and wireless interfaces
+                if [ "$iface_name" = "lo" ] || [ -d "/sys/class/net/$iface_name/wireless" ]; then
+                    continue
+                fi
+                
+                # Check if it's an Ethernet interface
+                if [ -f "/sys/class/net/$iface_name/type" ]; then
+                    iface_type=$(cat "/sys/class/net/$iface_name/type")
+                    if [ "$iface_type" = "1" ]; then  # ARPHRD_ETHER
+                        log_message "Found Ethernet interface: $iface_name"
+                        found_interfaces="$found_interfaces $iface_name"
+                    fi
+                fi
+            fi
+        done
+    done
+    
+    # Handle no interfaces found
+    if [ -z "$found_interfaces" ]; then
+        log_message "ERROR: No Ethernet interfaces found"
+        /usr/bin/error-handler report E001 "" "Interface patterns: $INTERFACE_PATTERNS"
+        return 1
+    fi
+    
+    # Prioritization logic: prefer eth* over en*, then by lowest number
+    for pattern in $patterns; do
+        for iface in $found_interfaces; do
+            case "$iface" in
+                $pattern)
+                    if [ -z "$prioritized_interface" ]; then
+                        prioritized_interface="$iface"
+                    else
+                        # Compare interface names for lowest number priority
+                        iface_num=$(echo "$iface" | sed 's/[^0-9]*//g')
+                        current_num=$(echo "$prioritized_interface" | sed 's/[^0-9]*//g')
+                        
+                        # If same pattern type, prefer lower number
+                        if [ "${iface%${iface_num}}" = "${prioritized_interface%${current_num}}" ]; then
+                            if [ -n "$iface_num" ] && [ -n "$current_num" ] && [ "$iface_num" -lt "$current_num" ]; then
+                                prioritized_interface="$iface"
+                            fi
+                        fi
+                    fi
+                    ;;
+            esac
+        done
+        # If we found an interface with this pattern, use it (prioritization)
+        if [ -n "$prioritized_interface" ]; then
+            break
+        fi
+    done
+    
+    if [ -n "$prioritized_interface" ]; then
+        log_message "Selected prioritized interface: $prioritized_interface"
+        /usr/bin/error-handler report I002 "Network interface selected: $prioritized_interface" "Available interfaces: $found_interfaces"
+        echo "$prioritized_interface"
+        return 0
+    else
+        log_message "ERROR: No suitable Ethernet interface found after prioritization"
+        /usr/bin/error-handler report E019 "" "Found interfaces: $found_interfaces, Patterns: $INTERFACE_PATTERNS"
+        return 1
+    fi
+}
+
+# Function to configure network interface for PS4 communication
+configure_interface() {
+    local interface="$1"
+    
+    if [ -z "$interface" ]; then
+        log_message "ERROR: No interface specified for configuration"
+        /usr/bin/error-handler report E002 "No interface specified for configuration" ""
+        return 1
+    fi
+    
+    log_message "Configuring interface $interface for PS4 communication..."
+    
+    # Bring interface down first to reset state
+    ip link set dev "$interface" down 2>/dev/null
+    sleep 1
+    
+    # Bring interface up
+    ip link set dev "$interface" up
+    if [ $? -ne 0 ]; then
+        log_message "ERROR: Failed to bring up interface $interface"
+        /usr/bin/error-handler report E002 "Failed to bring up network interface" "Interface: $interface"
+        return 1
+    fi
+    
+    # Wait for link to come up
+    sleep "$LINK_UP_DELAY"
+    
+    # Check link status
+    local link_detected=0
+    if [ -f "/sys/class/net/$interface/carrier" ]; then
+        carrier=$(cat "/sys/class/net/$interface/carrier" 2>/dev/null)
+        if [ "$carrier" = "1" ]; then
+            log_message "Physical link detected on $interface"
+            link_detected=1
+        else
+            log_message "WARNING: No physical link detected on $interface"
+            /usr/bin/error-handler report W001 "No physical link detected" "Interface: $interface, Check cable connections"
+        fi
+    fi
+    
+    # Kill any existing DHCP clients for this interface
+    killall udhcpc 2>/dev/null
+    
+    # Try DHCP configuration first
+    log_message "Attempting DHCP configuration on $interface..."
+    
+    # Create DHCP script for better control
+    cat > /tmp/udhcpc_script << 'EOF'
+#!/bin/sh
+case "$1" in
+    bound|renew)
+        ip addr add $ip/$mask dev $interface 2>/dev/null
+        [ -n "$router" ] && ip route add default via $router dev $interface 2>/dev/null
+        [ -n "$dns" ] && echo "nameserver $dns" > /etc/resolv.conf
+        echo "DHCP_SUCCESS" > /tmp/dhcp_status
+        ;;
+    deconfig)
+        ip addr flush dev $interface
+        ip route flush dev $interface
+        ;;
+esac
+EOF
+    chmod +x /tmp/udhcpc_script
+    
+    # Start DHCP client with timeout
+    rm -f /tmp/dhcp_status
+    timeout "$DHCP_TIMEOUT" udhcpc -i "$interface" -s /tmp/udhcpc_script -n -q
+    dhcp_result=$?
+    
+    # Check DHCP result
+    if [ -f /tmp/dhcp_status ] && [ "$(cat /tmp/dhcp_status)" = "DHCP_SUCCESS" ]; then
+        ip_addr=$(ip addr show "$interface" | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
+        log_message "DHCP successful on $interface with IP: $ip_addr"
+        
+        # Update interfaces file for persistence
+        cat > /etc/network/interfaces << EOF
+auto lo
+iface lo inet loopback
+
+auto $interface
+iface $interface inet dhcp
+EOF
+        
+        # Store configuration info
+        echo "$interface" > /tmp/pppwn_interface
+        echo "$ip_addr" > /tmp/pppwn_ip
+        echo "dhcp" > /tmp/pppwn_config_method
+        
+        return 0
+    else
+        log_message "DHCP failed (timeout or no response), trying static configuration..."
+        /usr/bin/error-handler report W003 "DHCP configuration failed, falling back to static IP" "Interface: $interface, Timeout: ${DHCP_TIMEOUT}s"
+        
+        # Fallback to static IP configuration optimized for PS4
+        local static_ip="192.168.1.100"
+        local static_netmask="24"
+        local static_network="192.168.1.0/24"
+        
+        # Clear any existing IP addresses
+        ip addr flush dev "$interface"
+        
+        # Add static IP
+        ip addr add "$static_ip/$static_netmask" dev "$interface"
+        if [ $? -eq 0 ]; then
+            log_message "Configured $interface with static IP: $static_ip/$static_netmask"
+            
+            # Update interfaces file for static configuration
+            cat > /etc/network/interfaces << EOF
+auto lo
+iface lo inet loopback
+
+auto $interface
+iface $interface inet static
+    address $static_ip
+    netmask 255.255.255.0
+    network 192.168.1.0
+    broadcast 192.168.1.255
+EOF
+            
+            # Store configuration info
+            echo "$interface" > /tmp/pppwn_interface
+            echo "$static_ip" > /tmp/pppwn_ip
+            echo "static" > /tmp/pppwn_config_method
+            
+            return 0
+        else
+            log_message "ERROR: Failed to configure static IP on $interface"
+            /usr/bin/error-handler report E005 "Static IP configuration failed" "Interface: $interface, IP: $static_ip/$static_netmask"
+            return 1
+        fi
+    fi
+}
+
+# Function to detect PS4 console on network
+detect_ps4_console() {
+    local interface="$1"
+    local ip_addr="$2"
+    
+    if [ -z "$interface" ] || [ -z "$ip_addr" ]; then
+        log_message "ERROR: Interface or IP address not specified for PS4 detection"
+        /usr/bin/error-handler report E006 "Missing interface or IP for PS4 detection" "Interface: $interface, IP: $ip_addr"
+        return 1
+    fi
+    
+    log_message "Scanning for PS4 console on network..."
+    
+    # Get network range based on IP configuration
+    local network_base=$(echo "$ip_addr" | cut -d'.' -f1-3)
+    local config_method=$(cat /tmp/pppwn_config_method 2>/dev/null || echo "unknown")
+    
+    # Define common PS4 IP ranges to scan
+    local scan_ranges=""
+    if [ "$config_method" = "dhcp" ]; then
+        # For DHCP, scan the entire subnet
+        scan_ranges="$network_base.1-254"
+    else
+        # For static, focus on common PS4 IP ranges
+        scan_ranges="$network_base.2-50 $network_base.101-150"
+    fi
+    
+    # Use ping to detect active hosts (PS4 typically responds to ping)
+    local ps4_candidates=""
+    for range in $scan_ranges; do
+        if echo "$range" | grep -q '-'; then
+            start_ip=$(echo "$range" | cut -d'-' -f1 | cut -d'.' -f4)
+            end_ip=$(echo "$range" | cut -d'-' -f2)
+            base_ip=$(echo "$range" | cut -d'-' -f1 | cut -d'.' -f1-3)
+            
+            for i in $(seq "$start_ip" "$end_ip"); do
+                target_ip="$base_ip.$i"
+                if [ "$target_ip" != "$ip_addr" ]; then
+                    # Quick ping test (1 second timeout)
+                    if ping -c 1 -W 1 -I "$interface" "$target_ip" >/dev/null 2>&1; then
+                        log_message "Found active host: $target_ip"
+                        ps4_candidates="$ps4_candidates $target_ip"
+                    fi
+                fi
+            done
+        fi
+    done
+    
+    if [ -n "$ps4_candidates" ]; then
+        # Store PS4 candidates for PPPwn execution
+        echo "$ps4_candidates" > /tmp/pppwn_ps4_candidates
+        log_message "PS4 detection complete. Found candidates: $ps4_candidates"
+        
+        # For now, use the first candidate as primary target
+        primary_target=$(echo "$ps4_candidates" | awk '{print $1}')
+        echo "$primary_target" > /tmp/pppwn_ps4_target
+        log_message "Primary PS4 target set to: $primary_target"
+        
+        return 0
+    else
+        log_message "No PS4 console detected on network"
+        log_message "This may be normal - PS4 might be in rest mode or not connected"
+        
+        # Create empty files to indicate detection was attempted
+        touch /tmp/pppwn_ps4_candidates
+        echo "none" > /tmp/pppwn_ps4_target
+        
+        return 0  # Not a failure - PS4 might be in rest mode
+    fi
+}
+
+# Main execution
+main() {
+    local retry_count=0
+    local interface=""
+    
+    log_message "Starting network detection for PPPwn Live System"
+    
+    while [ $retry_count -lt $DETECTION_RETRIES ]; do
+        retry_count=$((retry_count + 1))
+        log_message "Detection attempt $retry_count of $DETECTION_RETRIES"
+        
+        interface=$(detect_ps4_interface)
+        detection_result=$?
+        
+        if [ $detection_result -eq 0 ] && [ -n "$interface" ]; then
+            if configure_interface "$interface"; then
+                log_message "Network configuration successful"
+                
+                # Get the configured IP address
+                ip_addr=$(cat /tmp/pppwn_ip 2>/dev/null)
+                
+                if [ -n "$ip_addr" ]; then
+                    # Attempt PS4 console detection
+                    log_message "Attempting PS4 console detection..."
+                    detect_ps4_console "$interface" "$ip_addr"
+                    
+                    log_message "Network setup complete - ready for PPPwn execution"
+                    exit 0
+                else
+                    log_message "ERROR: Could not determine configured IP address"
+                    exit 1
+                fi
+            else
+                log_message "Configuration failed for $interface"
+            fi
+        else
+            log_message "No suitable Ethernet interface found"
+        fi
+        
+        if [ $retry_count -lt $DETECTION_RETRIES ]; then
+            log_message "Retrying in 3 seconds..."
+            sleep 3
+        fi
+    done
+    
+    log_message "ERROR: Network detection failed after $DETECTION_RETRIES attempts"
+    log_message "Please check your Ethernet connection and try again"
+    
+    # Report comprehensive error
+    /usr/bin/error-handler report E001 "Network detection failed after all attempts" "Attempts: $DETECTION_RETRIES, Patterns: $INTERFACE_PATTERNS"
+    
+    # Create error marker for other scripts
+    echo "NETWORK_DETECTION_FAILED" > /tmp/pppwn_error
+    
+    # Offer recovery options before shutdown
+    if [ "$auto_shutdown" = "true" ]; then
+        log_message "Auto-shutdown enabled, but offering recovery options first"
+        echo
+        echo "Network detection failed. Recovery options:"
+        echo "1. Launch recovery system for network troubleshooting"
+        echo "2. Continue to automatic shutdown"
+        echo "3. Access emergency shell"
+        printf "Choice (1-3, timeout 30s): "
+        
+        # Use timeout to prevent hanging
+        if read -t 30 recovery_choice; then
+            case "$recovery_choice" in
+                1)
+                    log_message "User selected recovery system"
+                    if [ -x /usr/bin/recovery-system ]; then
+                        /usr/bin/recovery-system network-recovery
+                        # Check if recovery was successful
+                        if [ -f /tmp/pppwn_interface ]; then
+                            log_message "Network recovery successful, continuing"
+                            exit 0
+                        fi
+                    fi
+                    ;;
+                3)
+                    log_message "User selected emergency shell"
+                    /usr/bin/emergency-shell
+                    ;;
+                *)
+                    log_message "User selected shutdown or invalid choice"
+                    ;;
+            esac
+        else
+            log_message "Recovery choice timeout, proceeding to shutdown"
+        fi
+        
+        /usr/bin/secure-shutdown error "Critical network detection failure - no suitable interfaces found"
+    fi
+    
+    exit 1
+}
+
+# Execute main function
+main "$@"

@@ -1,0 +1,231 @@
+#!/bin/sh
+#
+# PPPwn Configuration Utility
+# Allows users to modify PPPwn system configuration
+#
+
+CONFIG_FILE="/etc/pppwn/config"
+
+# Function to show current configuration
+show_config() {
+    echo "Current PPPwn Configuration:"
+    echo "============================"
+    
+    if [ -f "$CONFIG_FILE" ]; then
+        # Parse and display key configuration values
+        while IFS='=' read -r key value; do
+            # Skip comments and empty lines
+            case "$key" in
+                \#*|'') continue ;;
+            esac
+            
+            # Format key-value pairs nicely
+            printf "  %-20s: %s\n" "$key" "$value"
+        done < "$CONFIG_FILE"
+    else
+        echo "Configuration file not found: $CONFIG_FILE"
+        return 1
+    fi
+}
+
+# Function to update configuration value
+update_config() {
+    local key="$1"
+    local value="$2"
+    
+    if [ -z "$key" ] || [ -z "$value" ]; then
+        echo "Usage: update_config KEY VALUE"
+        return 1
+    fi
+    
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo "Configuration file not found: $CONFIG_FILE"
+        return 1
+    fi
+    
+    # Create backup
+    cp "$CONFIG_FILE" "$CONFIG_FILE.backup"
+    
+    # Update the configuration
+    if grep -q "^$key=" "$CONFIG_FILE"; then
+        # Key exists, update it
+        sed -i "s/^$key=.*/$key=$value/" "$CONFIG_FILE"
+        echo "Updated $key=$value"
+    else
+        # Key doesn't exist, add it
+        echo "$key=$value" >> "$CONFIG_FILE"
+        echo "Added $key=$value"
+    fi
+    
+    return 0
+}
+
+# Function to toggle auto-start
+toggle_auto_start() {
+    local current_value=$(grep "^auto_start=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2)
+    
+    if [ "$current_value" = "true" ]; then
+        update_config "auto_start" "false"
+        echo "Auto-start disabled. PPPwn will show menu on boot."
+    else
+        update_config "auto_start" "true"
+        echo "Auto-start enabled. PPPwn will start automatically on boot."
+    fi
+}
+
+# Function to set firmware version
+set_firmware_version() {
+    local fw_version="$1"
+    
+    if [ -z "$fw_version" ]; then
+        echo "Current firmware version: $(grep "^firmware_version=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2)"
+        echo
+        echo "Available firmware versions:"
+        echo "  900, 903, 904, 950, 951, 960, 1000, 1001, 1050, 1070, 1071, 1100"
+        echo
+        printf "Enter firmware version (4 digits): "
+        read fw_version
+    fi
+    
+    # Validate firmware version format
+    if ! echo "$fw_version" | grep -qE '^[0-9]{3,4}$'; then
+        echo "Invalid firmware version format. Use 3-4 digits (e.g., 1100)"
+        return 1
+    fi
+    
+    update_config "firmware_version" "$fw_version"
+    echo "Firmware version set to $fw_version"
+}
+
+# Function to show help
+show_help() {
+    echo "PPPwn Configuration Utility"
+    echo "=========================="
+    echo
+    echo "Usage: $0 [COMMAND] [OPTIONS]"
+    echo
+    echo "Commands:"
+    echo "  show                    - Show current configuration"
+    echo "  set KEY VALUE          - Set configuration value"
+    echo "  toggle-autostart       - Toggle automatic PPPwn execution"
+    echo "  set-firmware VERSION   - Set PS4 firmware version"
+    echo "  reset                  - Reset to default configuration"
+    echo "  help                   - Show this help"
+    echo
+    echo "Examples:"
+    echo "  $0 show"
+    echo "  $0 set retry_attempts 5"
+    echo "  $0 toggle-autostart"
+    echo "  $0 set-firmware 1100"
+    echo
+    echo "Common Configuration Keys:"
+    echo "  auto_start             - Enable/disable automatic execution (true/false)"
+    echo "  firmware_version       - PS4 firmware version (e.g., 1100)"
+    echo "  retry_attempts         - Number of exploit retry attempts"
+    echo "  retry_delay            - Delay between retry attempts (seconds)"
+    echo "  auto_shutdown          - Enable automatic shutdown after success (true/false)"
+    echo "  timeout_seconds        - Timeout for exploit execution (seconds)"
+    echo "  verbose_output         - Enable verbose output (true/false)"
+    echo "  color_output           - Enable colored output (true/false)"
+}
+
+# Function to reset configuration to defaults
+reset_config() {
+    echo "This will reset all configuration to defaults."
+    printf "Are you sure? (y/N): "
+    read confirm
+    
+    case "$confirm" in
+        [Yy]|[Yy][Ee][Ss])
+            # Create backup
+            if [ -f "$CONFIG_FILE" ]; then
+                cp "$CONFIG_FILE" "$CONFIG_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+                echo "Backup created: $CONFIG_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+            fi
+            
+            # Write default configuration
+            cat > "$CONFIG_FILE" << 'EOF'
+# PPPwn Live System Configuration
+# This file contains configuration parameters for the PPPwn exploit system
+# Format: key=value (shell-compatible)
+
+# System settings
+hostname=PPPwnLive
+auto_shutdown=true
+auto_start=false
+timeout_seconds=300
+clear_screen=true
+
+# Network settings
+# Interface patterns to search for (in order of preference)
+interface_patterns=eth*,en*
+dhcp_timeout=30
+detection_retries=3
+link_up_delay=2
+ps4_scan_timeout=10
+
+# Exploit settings
+# Default firmware version (can be overridden by user input)
+firmware_version=1100
+stage1_path=/usr/share/pppwn/stage1/
+stage2_path=/usr/share/pppwn/stage2/
+binary_path=/usr/bin/pppwn
+retry_attempts=3
+retry_delay=5
+auto_mode=true
+
+# Display settings
+show_banner=true
+verbose_output=true
+color_output=true
+progress_indicators=true
+
+# Security settings
+clear_memory_on_shutdown=true
+disable_unused_services=true
+readonly_filesystem=false
+memory_clear_passes=3
+enable_aslr=true
+disable_core_dumps=true
+restrict_kernel_logs=true
+secure_tmp_mounts=true
+EOF
+            echo "Configuration reset to defaults"
+            ;;
+        *)
+            echo "Reset cancelled"
+            ;;
+    esac
+}
+
+# Main execution
+case "$1" in
+    "show"|"")
+        show_config
+        ;;
+    "set")
+        if [ $# -ge 3 ]; then
+            update_config "$2" "$3"
+        else
+            echo "Usage: $0 set KEY VALUE"
+            exit 1
+        fi
+        ;;
+    "toggle-autostart")
+        toggle_auto_start
+        ;;
+    "set-firmware")
+        set_firmware_version "$2"
+        ;;
+    "reset")
+        reset_config
+        ;;
+    "help"|"--help"|"-h")
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Use '$0 help' for usage information"
+        exit 1
+        ;;
+esac

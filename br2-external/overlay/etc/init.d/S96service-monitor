@@ -1,0 +1,85 @@
+#!/bin/sh
+#
+# Service Monitor Init Script for PPPwn Live System
+# Starts and manages the service monitoring daemon
+#
+
+DAEMON="service-monitor"
+DAEMON_BIN="/usr/bin/service-monitor"
+PIDFILE="/var/run/$DAEMON.pid"
+
+# Source function library
+. /etc/init.d/functions
+
+start() {
+    printf "Starting $DAEMON: "
+    
+    if [ ! -x "$DAEMON_BIN" ]; then
+        echo "FAILED - binary not found"
+        return 1
+    fi
+    
+    # Check if already running
+    if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+        echo "ALREADY RUNNING"
+        return 0
+    fi
+    
+    # Start service monitor
+    $DAEMON_BIN start >/dev/null 2>&1
+    
+    if [ $? -eq 0 ]; then
+        echo "OK"
+        return 0
+    else
+        echo "FAILED"
+        return 1
+    fi
+}
+
+stop() {
+    printf "Stopping $DAEMON: "
+    
+    if [ -x "$DAEMON_BIN" ]; then
+        $DAEMON_BIN stop >/dev/null 2>&1
+        echo "OK"
+    else
+        echo "FAILED - binary not found"
+        return 1
+    fi
+}
+
+restart() {
+    stop
+    sleep 2
+    start
+}
+
+status() {
+    if [ -x "$DAEMON_BIN" ]; then
+        $DAEMON_BIN status
+    else
+        echo "$DAEMON is not available"
+        return 1
+    fi
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart|reload)
+        restart
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+esac
+
+exit $?

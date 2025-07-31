@@ -1,0 +1,202 @@
+name: Build PPPwn Live ISO
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        description: 'Buildroot configuration to use'
+        required: false
+        default: 'pppwn_defconfig'
+        type: string
+      architecture:
+        description: 'Target architecture'
+        required: false
+        default: 'x86_64'
+        type: string
+      upload-artifacts:
+        description: 'Whether to upload build artifacts'
+        required: false
+        default: true
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'Buildroot configuration to use'
+        required: false
+        default: 'pppwn_defconfig'
+        type: choice
+        options:
+          - pppwn_defconfig
+      architecture:
+        description: 'Target architecture'
+        required: false
+        default: 'x86_64'
+        type: choice
+        options:
+          - x86_64
+      upload-artifacts:
+        description: 'Upload build artifacts'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  BUILDROOT_VERSION: "2025.05"
+  BUILDROOT_REPO: "https://github.com/buildroot/buildroot"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: [${{ inputs.config || 'pppwn_defconfig' }}]
+        architecture: [${{ inputs.architecture || 'x86_64' }}]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          libncurses5-dev \
+          rsync \
+          bc \
+          wget \
+          cpio \
+          python3 \
+          unzip \
+          file \
+          git \
+          cmake \
+          ninja-build \
+          pkg-config \
+          libtool \
+          autoconf \
+          automake \
+          gettext \
+          bison \
+          flex \
+          texinfo \
+          help2man \
+          gawk \
+          libtool-bin \
+          libglib2.0-dev \
+          libfdt-dev \
+          libpixman-1-dev \
+          zlib1g-dev \
+          libnfs-dev \
+          libiscsi-dev
+
+    - name: Cache Buildroot source
+      id: cache-buildroot
+      uses: actions/cache@v4
+      with:
+        path: buildroot
+        key: buildroot-${{ env.BUILDROOT_VERSION }}-${{ hashFiles('.github/workflows/build.yml') }}
+        restore-keys: |
+          buildroot-${{ env.BUILDROOT_VERSION }}-
+
+    - name: Clone Buildroot
+      if: steps.cache-buildroot.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --branch ${{ env.BUILDROOT_VERSION }} ${{ env.BUILDROOT_REPO }} buildroot
+
+    - name: Cache Buildroot downloads
+      uses: actions/cache@v4
+      with:
+        path: buildroot/dl
+        key: buildroot-dl-${{ hashFiles('br2-external/package/*/**.mk', 'br2-external/package/*/**.hash') }}
+        restore-keys: |
+          buildroot-dl-
+
+    - name: Cache Buildroot build artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          buildroot/output/build
+          buildroot/output/host
+        key: buildroot-build-${{ matrix.config }}-${{ matrix.architecture }}-${{ hashFiles('br2-external/**', 'configs/**') }}
+        restore-keys: |
+          buildroot-build-${{ matrix.config }}-${{ matrix.architecture }}-
+          buildroot-build-${{ matrix.config }}-
+          buildroot-build-
+
+    - name: Configure Buildroot
+      run: |
+        cd buildroot
+        make BR2_EXTERNAL=../br2-external ${{ matrix.config }}
+
+    - name: Build system
+      run: |
+        cd buildroot
+        make -j$(nproc)
+
+    - name: Verify build artifacts
+      run: |
+        cd buildroot
+        ls -la output/images/
+        if [ ! -f output/images/rootfs.iso9660 ]; then
+          echo "Error: ISO image not found"
+          exit 1
+        fi
+        
+        # Rename ISO to more descriptive name
+        mv output/images/rootfs.iso9660 output/images/pppwn-live-${{ matrix.architecture }}.iso
+        
+        # Check ISO size (should be reasonable for a minimal system)
+        ISO_SIZE=$(stat -c%s output/images/pppwn-live-${{ matrix.architecture }}.iso)
+        echo "ISO size: $((ISO_SIZE / 1024 / 1024)) MB"
+        
+        if [ $ISO_SIZE -gt 1073741824 ]; then  # 1GB limit
+          echo "Warning: ISO size is larger than expected"
+        fi
+        
+        # Verify ISO can be mounted (basic integrity check)
+        mkdir -p /tmp/iso_test
+        sudo mount -o loop output/images/pppwn-live-${{ matrix.architecture }}.iso /tmp/iso_test || {
+          echo "Error: ISO cannot be mounted"
+          exit 1
+        }
+        sudo umount /tmp/iso_test
+
+    - name: Generate build info
+      run: |
+        cd buildroot
+        echo "Build Information" > ../build-info.txt
+        echo "=================" >> ../build-info.txt
+        echo "Build Date: $(date -u)" >> ../build-info.txt
+        echo "Buildroot Version: ${{ env.BUILDROOT_VERSION }}" >> ../build-info.txt
+        echo "Configuration: ${{ matrix.config }}" >> ../build-info.txt
+        echo "Architecture: ${{ matrix.architecture }}" >> ../build-info.txt
+        echo "Commit SHA: ${{ github.sha }}" >> ../build-info.txt
+        echo "Branch: ${{ github.ref_name }}" >> ../build-info.txt
+        echo "" >> ../build-info.txt
+        echo "Package Versions:" >> ../build-info.txt
+        echo "=================" >> ../build-info.txt
+        make show-info >> ../build-info.txt 2>/dev/null || echo "Package info not available" >> ../build-info.txt
+
+    - name: Upload build artifacts
+      if: ${{ inputs.upload-artifacts != false }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: pppwn-live-iso-${{ matrix.config }}-${{ matrix.architecture }}-${{ github.sha }}
+        path: |
+          buildroot/output/images/pppwn-live-${{ matrix.architecture }}.iso
+          build-info.txt
+        retention-days: 30
+
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ matrix.config }}-${{ matrix.architecture }}-${{ github.sha }}
+        path: |
+          buildroot/output/build/build-time.log
+          buildroot/output/build/packages-file-list.txt
+        retention-days: 7

@@ -1,0 +1,707 @@
+#!/bin/sh
+#
+# Recovery System for PPPwn Live System
+# Provides fallback options, manual intervention points, and emergency recovery
+#
+
+# Configuration
+RECOVERY_LOG="/tmp/pppwn_recovery.log"
+NETWORK_FALLBACK_CONFIG="/tmp/network_fallback.conf"
+MANUAL_CONFIG_FILE="/tmp/manual_config.conf"
+
+# Color definitions
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+CYAN='\033[1;36m'
+WHITE='\033[1;37m'
+RESET='\033[0m'
+
+# Logging function
+log_recovery() {
+    local message="$1"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] RECOVERY: $message" | tee -a "$RECOVERY_LOG"
+    logger -t recovery-system "$message"
+}
+
+# Display recovery menu
+show_recovery_menu() {
+    clear
+    echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${BLUE}║                    PPPwn Recovery System                     ║${RESET}"
+    echo -e "${BLUE}╠══════════════════════════════════════════════════════════════╣${RESET}"
+    echo -e "${BLUE}║${RESET} ${WHITE}System encountered an error and needs manual intervention${RESET}     ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET}                                                              ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${YELLOW}Available Recovery Options:${RESET}                                  ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET}                                                              ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}1.${RESET} Network Configuration Recovery                           ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}2.${RESET} Manual Network Setup                                    ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}3.${RESET} System Diagnostics                                      ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}4.${RESET} View Error Logs                                         ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}5.${RESET} Emergency Shell Access                                  ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}6.${RESET} Restart PPPwn Process                                   ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}7.${RESET} System Reboot                                           ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}8.${RESET} Safe Shutdown                                           ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET}                                                              ${BLUE}║${RESET}"
+    echo -e "${BLUE}║${RESET} ${CYAN}0.${RESET} Exit Recovery System                                    ${BLUE}║${RESET}"
+    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+}
+
+# Network configuration recovery with multiple fallback options
+network_recovery() {
+    log_recovery "Starting network configuration recovery"
+    
+    echo -e "${YELLOW}Network Configuration Recovery${RESET}"
+    echo "=============================="
+    echo
+    
+    # Detect all available interfaces
+    echo "Scanning for network interfaces..."
+    local interfaces=""
+    for iface in /sys/class/net/*; do
+        if [ -d "$iface" ]; then
+            iface_name=$(basename "$iface")
+            if [ "$iface_name" != "lo" ] && [ ! -d "/sys/class/net/$iface_name/wireless" ]; then
+                # Check if it's Ethernet
+                if [ -f "/sys/class/net/$iface_name/type" ]; then
+                    iface_type=$(cat "/sys/class/net/$iface_name/type")
+                    if [ "$iface_type" = "1" ]; then
+                        interfaces="$interfaces $iface_name"
+                        echo "  Found: $iface_name"
+                    fi
+                fi
+            fi
+        fi
+    done
+    
+    if [ -z "$interfaces" ]; then
+        echo -e "${RED}ERROR: No Ethernet interfaces found${RESET}"
+        echo "Please check your hardware connections and try again."
+        return 1
+    fi
+    
+    echo
+    echo "Available fallback configurations:"
+    echo "1. DHCP with extended timeout"
+    echo "2. Static IP (192.168.1.100/24)"
+    echo "3. Static IP (192.168.0.100/24)"
+    echo "4. Static IP (10.0.0.100/24)"
+    echo "5. Custom static IP configuration"
+    echo "6. Try all interfaces with DHCP"
+    echo
+    printf "Select configuration (1-6): "
+    read config_choice
+    
+    case "$config_choice" in
+        1) network_fallback_dhcp_extended "$interfaces" ;;
+        2) network_fallback_static "192.168.1.100" "24" "192.168.1.1" "$interfaces" ;;
+        3) network_fallback_static "192.168.0.100" "24" "192.168.0.1" "$interfaces" ;;
+        4) network_fallback_static "10.0.0.100" "24" "10.0.0.1" "$interfaces" ;;
+        5) network_fallback_custom "$interfaces" ;;
+        6) network_fallback_try_all "$interfaces" ;;
+        *) echo "Invalid choice"; return 1 ;;
+    esac
+}
+
+# Extended DHCP configuration with longer timeout
+network_fallback_dhcp_extended() {
+    local interfaces="$1"
+    local timeout=60
+    
+    echo "Attempting DHCP with extended timeout (${timeout}s)..."
+    
+    for interface in $interfaces; do
+        echo "Trying interface: $interface"
+        
+        # Bring interface down and up
+        ip link set dev "$interface" down 2>/dev/null
+        sleep 1
+        ip link set dev "$interface" up
+        sleep 2
+        
+        # Kill existing DHCP clients
+        killall udhcpc 2>/dev/null
+        
+        # Try DHCP with extended timeout
+        echo "Starting DHCP client..."
+        timeout "$timeout" udhcpc -i "$interface" -n -q
+        
+        if [ $? -eq 0 ]; then
+            local ip_addr=$(ip addr show "$interface" | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
+            if [ -n "$ip_addr" ]; then
+                echo -e "${GREEN}SUCCESS: DHCP configured $interface with IP $ip_addr${RESET}"
+                echo "$interface" > /tmp/pppwn_interface
+                echo "$ip_addr" > /tmp/pppwn_ip
+                echo "dhcp_extended" > /tmp/pppwn_config_method
+                log_recovery "DHCP extended timeout successful on $interface ($ip_addr)"
+                return 0
+            fi
+        fi
+        
+        echo "DHCP failed on $interface, trying next..."
+    done
+    
+    echo -e "${RED}DHCP failed on all interfaces${RESET}"
+    return 1
+}
+
+# Static IP fallback configuration
+network_fallback_static() {
+    local static_ip="$1"
+    local netmask="$2"
+    local gateway="$3"
+    local interfaces="$4"
+    
+    echo "Configuring static IP: $static_ip/$netmask"
+    
+    for interface in $interfaces; do
+        echo "Trying interface: $interface"
+        
+        # Bring interface down and up
+        ip link set dev "$interface" down 2>/dev/null
+        sleep 1
+        ip link set dev "$interface" up
+        sleep 2
+        
+        # Clear existing configuration
+        ip addr flush dev "$interface"
+        
+        # Add static IP
+        ip addr add "$static_ip/$netmask" dev "$interface"
+        if [ $? -eq 0 ]; then
+            # Add default route if gateway provided
+            if [ -n "$gateway" ]; then
+                ip route add default via "$gateway" dev "$interface" 2>/dev/null
+            fi
+            
+            echo -e "${GREEN}SUCCESS: Static IP configured on $interface${RESET}"
+            echo "IP Address: $static_ip/$netmask"
+            [ -n "$gateway" ] && echo "Gateway: $gateway"
+            
+            # Store configuration
+            echo "$interface" > /tmp/pppwn_interface
+            echo "$static_ip" > /tmp/pppwn_ip
+            echo "static_fallback" > /tmp/pppwn_config_method
+            
+            # Update interfaces file
+            cat > /etc/network/interfaces << EOF
+auto lo
+iface lo inet loopback
+
+auto $interface
+iface $interface inet static
+    address $static_ip
+    netmask $(cidr_to_netmask "$netmask")
+    $([ -n "$gateway" ] && echo "gateway $gateway")
+EOF
+            
+            log_recovery "Static IP fallback successful on $interface ($static_ip/$netmask)"
+            return 0
+        else
+            echo "Failed to configure static IP on $interface"
+        fi
+    done
+    
+    echo -e "${RED}Static IP configuration failed on all interfaces${RESET}"
+    return 1
+}
+
+# Custom static IP configuration
+network_fallback_custom() {
+    local interfaces="$1"
+    
+    echo "Custom Static IP Configuration"
+    echo "=============================="
+    echo
+    
+    printf "Enter IP address (e.g., 192.168.1.100): "
+    read custom_ip
+    printf "Enter subnet mask (CIDR format, e.g., 24): "
+    read custom_mask
+    printf "Enter gateway (optional, press Enter to skip): "
+    read custom_gateway
+    
+    # Validate IP format
+    if ! echo "$custom_ip" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+        echo -e "${RED}Invalid IP address format${RESET}"
+        return 1
+    fi
+    
+    # Validate CIDR mask
+    if ! echo "$custom_mask" | grep -qE '^[0-9]{1,2}$' || [ "$custom_mask" -lt 1 ] || [ "$custom_mask" -gt 32 ]; then
+        echo -e "${RED}Invalid subnet mask (use 1-32)${RESET}"
+        return 1
+    fi
+    
+    network_fallback_static "$custom_ip" "$custom_mask" "$custom_gateway" "$interfaces"
+}
+
+# Try DHCP on all interfaces sequentially
+network_fallback_try_all() {
+    local interfaces="$1"
+    
+    echo "Trying DHCP on all interfaces..."
+    
+    for interface in $interfaces; do
+        echo "Attempting DHCP on $interface..."
+        
+        # Bring interface down and up
+        ip link set dev "$interface" down 2>/dev/null
+        sleep 1
+        ip link set dev "$interface" up
+        sleep 3
+        
+        # Kill existing DHCP clients
+        killall udhcpc 2>/dev/null
+        
+        # Try DHCP with moderate timeout
+        timeout 30 udhcpc -i "$interface" -n -q
+        
+        if [ $? -eq 0 ]; then
+            local ip_addr=$(ip addr show "$interface" | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
+            if [ -n "$ip_addr" ]; then
+                echo -e "${GREEN}SUCCESS: DHCP configured $interface with IP $ip_addr${RESET}"
+                echo "$interface" > /tmp/pppwn_interface
+                echo "$ip_addr" > /tmp/pppwn_ip
+                echo "dhcp_fallback" > /tmp/pppwn_config_method
+                log_recovery "DHCP fallback successful on $interface ($ip_addr)"
+                return 0
+            fi
+        fi
+        
+        echo "DHCP failed on $interface"
+    done
+    
+    echo -e "${RED}DHCP failed on all interfaces${RESET}"
+    return 1
+}
+
+# Manual network setup with guided configuration
+manual_network_setup() {
+    log_recovery "Starting manual network setup"
+    
+    echo -e "${YELLOW}Manual Network Setup${RESET}"
+    echo "===================="
+    echo
+    
+    # Show current network status
+    echo "Current Network Status:"
+    echo "======================="
+    ip addr show | grep -E '^[0-9]+:|inet ' | while read line; do
+        echo "  $line"
+    done
+    echo
+    
+    # List available interfaces
+    echo "Available Interfaces:"
+    local interfaces=""
+    for iface in /sys/class/net/*; do
+        if [ -d "$iface" ]; then
+            iface_name=$(basename "$iface")
+            if [ "$iface_name" != "lo" ]; then
+                local status="DOWN"
+                if [ -f "$iface/carrier" ]; then
+                    carrier=$(cat "$iface/carrier" 2>/dev/null)
+                    if [ "$carrier" = "1" ]; then
+                        status="UP"
+                    fi
+                fi
+                echo "  $iface_name: $status"
+                interfaces="$interfaces $iface_name"
+            fi
+        fi
+    done
+    echo
+    
+    printf "Enter interface name to configure: "
+    read selected_interface
+    
+    # Validate interface exists
+    if [ ! -d "/sys/class/net/$selected_interface" ]; then
+        echo -e "${RED}Interface $selected_interface does not exist${RESET}"
+        return 1
+    fi
+    
+    echo "Configuration options for $selected_interface:"
+    echo "1. DHCP"
+    echo "2. Static IP"
+    echo "3. Advanced configuration"
+    echo
+    printf "Select option (1-3): "
+    read config_option
+    
+    case "$config_option" in
+        1)
+            echo "Configuring DHCP on $selected_interface..."
+            ip link set dev "$selected_interface" down 2>/dev/null
+            sleep 1
+            ip link set dev "$selected_interface" up
+            sleep 2
+            killall udhcpc 2>/dev/null
+            udhcpc -i "$selected_interface" -n
+            ;;
+        2)
+            printf "Enter IP address: "
+            read manual_ip
+            printf "Enter subnet mask (CIDR): "
+            read manual_mask
+            printf "Enter gateway (optional): "
+            read manual_gateway
+            
+            ip link set dev "$selected_interface" down 2>/dev/null
+            sleep 1
+            ip link set dev "$selected_interface" up
+            sleep 2
+            ip addr flush dev "$selected_interface"
+            ip addr add "$manual_ip/$manual_mask" dev "$selected_interface"
+            
+            if [ -n "$manual_gateway" ]; then
+                ip route add default via "$manual_gateway" dev "$selected_interface"
+            fi
+            ;;
+        3)
+            echo "Advanced configuration - dropping to shell"
+            echo "Use 'ip' commands to configure the interface manually"
+            echo "Type 'exit' when done"
+            /bin/sh
+            ;;
+        *)
+            echo "Invalid option"
+            return 1
+            ;;
+    esac
+    
+    # Verify configuration
+    local configured_ip=$(ip addr show "$selected_interface" | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
+    if [ -n "$configured_ip" ]; then
+        echo -e "${GREEN}Interface $selected_interface configured with IP: $configured_ip${RESET}"
+        echo "$selected_interface" > /tmp/pppwn_interface
+        echo "$configured_ip" > /tmp/pppwn_ip
+        echo "manual" > /tmp/pppwn_config_method
+        log_recovery "Manual network setup successful on $selected_interface ($configured_ip)"
+        return 0
+    else
+        echo -e "${RED}Failed to configure interface $selected_interface${RESET}"
+        return 1
+    fi
+}
+
+# System diagnostics
+system_diagnostics() {
+    log_recovery "Running system diagnostics"
+    
+    echo -e "${YELLOW}System Diagnostics${RESET}"
+    echo "=================="
+    echo
+    
+    echo "System Information:"
+    echo "==================="
+    echo "Hostname: $(hostname)"
+    echo "Kernel: $(uname -r)"
+    echo "Uptime: $(uptime | cut -d',' -f1 | cut -d' ' -f4-)"
+    echo "Load: $(uptime | awk -F'load average:' '{print $2}')"
+    echo
+    
+    echo "Memory Usage:"
+    echo "============="
+    free -h 2>/dev/null || free
+    echo
+    
+    echo "Disk Usage:"
+    echo "==========="
+    df -h 2>/dev/null || df
+    echo
+    
+    echo "Network Interfaces:"
+    echo "==================="
+    ip addr show 2>/dev/null || ifconfig
+    echo
+    
+    echo "Network Routes:"
+    echo "==============="
+    ip route show 2>/dev/null || route -n
+    echo
+    
+    echo "Process List (PPPwn related):"
+    echo "============================="
+    ps aux | grep -E "(pppwn|network|dhcp)" | grep -v grep
+    echo
+    
+    echo "Recent System Messages:"
+    echo "======================="
+    dmesg | tail -20
+    echo
+    
+    printf "Press Enter to continue..."
+    read
+}
+
+# View error logs
+view_error_logs() {
+    log_recovery "Viewing error logs"
+    
+    echo -e "${YELLOW}Error Logs${RESET}"
+    echo "=========="
+    echo
+    
+    if [ -f "/tmp/pppwn_errors.log" ]; then
+        echo "PPPwn Error Log:"
+        echo "================"
+        cat "/tmp/pppwn_errors.log"
+        echo
+    fi
+    
+    if [ -f "/tmp/pppwn_debug.log" ]; then
+        echo "PPPwn Debug Log (last 20 lines):"
+        echo "================================="
+        tail -20 "/tmp/pppwn_debug.log"
+        echo
+    fi
+    
+    if [ -f "$RECOVERY_LOG" ]; then
+        echo "Recovery Log:"
+        echo "============="
+        cat "$RECOVERY_LOG"
+        echo
+    fi
+    
+    echo "System Log (last 20 lines):"
+    echo "============================"
+    dmesg | tail -20
+    echo
+    
+    printf "Press Enter to continue..."
+    read
+}
+
+# Emergency shell access
+emergency_shell() {
+    log_recovery "Emergency shell access requested"
+    
+    echo -e "${RED}Emergency Shell Access${RESET}"
+    echo "======================"
+    echo
+    echo -e "${YELLOW}WARNING: You are entering emergency shell mode${RESET}"
+    echo "This provides full system access for advanced troubleshooting."
+    echo "Type 'exit' to return to the recovery menu."
+    echo "Type 'help' for basic commands."
+    echo
+    
+    # Set up a helpful environment
+    export PS1="[EMERGENCY] \u@\h:\w# "
+    
+    # Create a help function
+    cat > /tmp/emergency_help << 'EOF'
+#!/bin/sh
+echo "Emergency Shell Help"
+echo "===================="
+echo
+echo "Network Commands:"
+echo "  ip addr show                 - Show network interfaces"
+echo "  ip link set eth0 up         - Bring up interface"
+echo "  ip addr add 192.168.1.100/24 dev eth0 - Add IP address"
+echo "  ping 192.168.1.1            - Test connectivity"
+echo
+echo "System Commands:"
+echo "  ps aux                       - Show running processes"
+echo "  dmesg                        - Show kernel messages"
+echo "  free -h                      - Show memory usage"
+echo "  df -h                        - Show disk usage"
+echo
+echo "PPPwn Commands:"
+echo "  /usr/bin/network-detector    - Run network detection"
+echo "  /usr/bin/pppwn-runner        - Run PPPwn exploit"
+echo "  /usr/bin/error-handler stats - Show error statistics"
+echo
+echo "Recovery Commands:"
+echo "  exit                         - Return to recovery menu"
+echo "  reboot                       - Restart system"
+echo "  poweroff                     - Shutdown system"
+EOF
+    chmod +x /tmp/emergency_help
+    export PATH="/tmp:$PATH"
+    alias help='/tmp/emergency_help'
+    
+    /bin/sh
+    
+    # Clean up
+    rm -f /tmp/emergency_help
+}
+
+# Restart PPPwn process
+restart_pppwn() {
+    log_recovery "Restarting PPPwn process"
+    
+    echo -e "${YELLOW}Restarting PPPwn Process${RESET}"
+    echo "========================"
+    echo
+    
+    # Kill any existing PPPwn processes
+    echo "Stopping existing PPPwn processes..."
+    killall pppwn 2>/dev/null
+    killall pppwn-runner 2>/dev/null
+    killall network-detector 2>/dev/null
+    sleep 2
+    
+    # Clear temporary files
+    echo "Clearing temporary files..."
+    rm -f /tmp/pppwn_* 2>/dev/null
+    
+    # Restart network detection
+    echo "Restarting network detection..."
+    /usr/bin/network-detector &
+    sleep 5
+    
+    # Check if network detection succeeded
+    if [ -f /tmp/pppwn_interface ]; then
+        echo -e "${GREEN}Network detection successful${RESET}"
+        echo "Starting PPPwn runner..."
+        /usr/bin/pppwn-runner &
+        echo "PPPwn process restarted"
+        log_recovery "PPPwn process restart successful"
+    else
+        echo -e "${RED}Network detection failed${RESET}"
+        echo "Please use network recovery options first"
+        log_recovery "PPPwn process restart failed - network detection failed"
+        return 1
+    fi
+}
+
+# Convert CIDR to netmask
+cidr_to_netmask() {
+    local cidr="$1"
+    local mask=""
+    local full_octets=$((cidr / 8))
+    local partial_octet=$((cidr % 8))
+    
+    # Full octets
+    for i in $(seq 1 $full_octets); do
+        mask="${mask}255."
+    done
+    
+    # Partial octet
+    if [ $partial_octet -gt 0 ]; then
+        local partial_value=$((256 - (256 >> partial_octet)))
+        mask="${mask}${partial_value}."
+    fi
+    
+    # Fill remaining octets with 0
+    local remaining_octets=$((4 - full_octets - (partial_octet > 0 ? 1 : 0)))
+    for i in $(seq 1 $remaining_octets); do
+        mask="${mask}0."
+    done
+    
+    # Remove trailing dot
+    echo "${mask%.*}"
+}
+
+# Main recovery menu loop
+main_recovery_loop() {
+    while true; do
+        show_recovery_menu
+        printf "Select option (0-8): "
+        read choice
+        
+        case "$choice" in
+            1)
+                network_recovery
+                printf "\nPress Enter to continue..."
+                read
+                ;;
+            2)
+                manual_network_setup
+                printf "\nPress Enter to continue..."
+                read
+                ;;
+            3)
+                system_diagnostics
+                ;;
+            4)
+                view_error_logs
+                ;;
+            5)
+                emergency_shell
+                ;;
+            6)
+                restart_pppwn
+                printf "\nPress Enter to continue..."
+                read
+                ;;
+            7)
+                echo "Rebooting system..."
+                log_recovery "System reboot requested"
+                reboot
+                ;;
+            8)
+                echo "Shutting down system..."
+                log_recovery "Safe shutdown requested"
+                /usr/bin/secure-shutdown recovery "User requested safe shutdown from recovery menu"
+                ;;
+            0)
+                echo "Exiting recovery system..."
+                log_recovery "Recovery system exit requested"
+                break
+                ;;
+            *)
+                echo "Invalid choice. Please select 0-8."
+                sleep 2
+                ;;
+        esac
+    done
+}
+
+# Help function
+show_help() {
+    echo "PPPwn Live System - Recovery System"
+    echo
+    echo "Usage: $0 [COMMAND]"
+    echo
+    echo "Commands:"
+    echo "  menu                 - Show interactive recovery menu (default)"
+    echo "  network-recovery     - Run network configuration recovery"
+    echo "  manual-network       - Manual network setup"
+    echo "  diagnostics          - Run system diagnostics"
+    echo "  logs                 - View error logs"
+    echo "  shell                - Emergency shell access"
+    echo "  restart              - Restart PPPwn process"
+    echo "  help                 - Show this help"
+    echo
+    echo "The recovery system provides fallback options when the main"
+    echo "PPPwn system encounters errors or needs manual intervention."
+}
+
+# Main execution
+case "$1" in
+    "network-recovery")
+        network_recovery
+        ;;
+    "manual-network")
+        manual_network_setup
+        ;;
+    "diagnostics")
+        system_diagnostics
+        ;;
+    "logs")
+        view_error_logs
+        ;;
+    "shell")
+        emergency_shell
+        ;;
+    "restart")
+        restart_pppwn
+        ;;
+    "help"|"--help"|"-h")
+        show_help
+        ;;
+    "menu"|"")
+        main_recovery_loop
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Use '$0 help' for usage information"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,326 @@
+#!/bin/sh
+#
+# Security Verification Script for PPPwn Live System
+# Verifies that all security hardening measures are properly applied
+#
+
+# Configuration
+CONFIG_FILE="/etc/pppwn/config"
+VERIFICATION_LOG="/tmp/security-verification.log"
+
+# Load configuration
+if [ -f "$CONFIG_FILE" ]; then
+    eval $(grep -E '^[a-zA-Z_][a-zA-Z0-9_]*=' "$CONFIG_FILE" | sed 's/^/export /')
+fi
+
+# Logging function
+log_verify() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    echo "[$timestamp] [$level] $message" >> "$VERIFICATION_LOG"
+    echo "[VERIFY] [$level] $message"
+    logger -t security-verify "$level: $message"
+}
+
+# Function to check service status
+check_services() {
+    log_verify "INFO" "Checking service security status..."
+    
+    local issues=0
+    local dangerous_services="telnetd ftpd httpd sshd rpcbind"
+    
+    for service in $dangerous_services; do
+        if pgrep "$service" >/dev/null 2>&1; then
+            log_verify "ERROR" "Dangerous service $service is running"
+            issues=$((issues + 1))
+        else
+            log_verify "OK" "Service $service is not running"
+        fi
+    done
+    
+    return $issues
+}
+
+# Function to check filesystem security
+check_filesystem() {
+    log_verify "INFO" "Checking filesystem security..."
+    
+    local issues=0
+    
+    # Check /tmp mount options
+    if mount | grep " /tmp " | grep -q "noexec"; then
+        log_verify "OK" "/tmp is mounted with noexec"
+    else
+        log_verify "WARNING" "/tmp is not mounted with noexec"
+        issues=$((issues + 1))
+    fi
+    
+    # Check sensitive file permissions
+    if [ -f "/etc/pppwn/config" ]; then
+        local perms=$(stat -c %a /etc/pppwn/config 2>/dev/null)
+        if [ "$perms" = "600" ]; then
+            log_verify "OK" "PPPwn config has correct permissions"
+        else
+            log_verify "WARNING" "PPPwn config permissions are $perms (should be 600)"
+            issues=$((issues + 1))
+        fi
+    fi
+    
+    # Check root directory permissions
+    local root_perms=$(stat -c %a /root 2>/dev/null)
+    if [ "$root_perms" = "700" ]; then
+        log_verify "OK" "Root directory has correct permissions"
+    else
+        log_verify "WARNING" "Root directory permissions are $root_perms (should be 700)"
+        issues=$((issues + 1))
+    fi
+    
+    return $issues
+}
+
+# Function to check memory security
+check_memory() {
+    log_verify "INFO" "Checking memory security..."
+    
+    local issues=0
+    
+    # Check if swap is disabled
+    if swapon -s | grep -q "/"; then
+        log_verify "ERROR" "Swap is enabled (security risk)"
+        issues=$((issues + 1))
+    else
+        log_verify "OK" "Swap is disabled"
+    fi
+    
+    # Check ASLR status
+    if [ -f "/proc/sys/kernel/randomize_va_space" ]; then
+        local aslr=$(cat /proc/sys/kernel/randomize_va_space)
+        if [ "$aslr" = "2" ]; then
+            log_verify "OK" "ASLR is fully enabled"
+        else
+            log_verify "WARNING" "ASLR is not fully enabled (value: $aslr)"
+            issues=$((issues + 1))
+        fi
+    fi
+    
+    # Check core dump restriction
+    if [ -f "/proc/sys/kernel/core_pattern" ]; then
+        local core_pattern=$(cat /proc/sys/kernel/core_pattern)
+        if [ "$core_pattern" = "|/bin/false" ]; then
+            log_verify "OK" "Core dumps are disabled"
+        else
+            log_verify "WARNING" "Core dumps may be enabled"
+            issues=$((issues + 1))
+        fi
+    fi
+    
+    return $issues
+}
+
+# Function to check network security
+check_network() {
+    log_verify "INFO" "Checking network security..."
+    
+    local issues=0
+    
+    # Check IP forwarding
+    if [ -f "/proc/sys/net/ipv4/ip_forward" ]; then
+        local ip_forward=$(cat /proc/sys/net/ipv4/ip_forward)
+        if [ "$ip_forward" = "0" ]; then
+            log_verify "OK" "IP forwarding is disabled"
+        else
+            log_verify "WARNING" "IP forwarding is enabled"
+            issues=$((issues + 1))
+        fi
+    fi
+    
+    # Check SYN cookies
+    if [ -f "/proc/sys/net/ipv4/tcp_syncookies" ]; then
+        local syn_cookies=$(cat /proc/sys/net/ipv4/tcp_syncookies)
+        if [ "$syn_cookies" = "1" ]; then
+            log_verify "OK" "SYN flood protection is enabled"
+        else
+            log_verify "WARNING" "SYN flood protection is disabled"
+            issues=$((issues + 1))
+        fi
+    fi
+    
+    return $issues
+}
+
+# Function to check running processes
+check_processes() {
+    log_verify "INFO" "Checking running processes..."
+    
+    local issues=0
+    
+    # Check for security-related processes
+    if pgrep "periodic-memory-clear" >/dev/null 2>&1; then
+        log_verify "OK" "Periodic memory clearing is running"
+    else
+        log_verify "WARNING" "Periodic memory clearing is not running"
+        issues=$((issues + 1))
+    fi
+    
+    # Check for unnecessary processes
+    local unnecessary_procs="bluetoothd cupsd avahi-daemon"
+    for proc in $unnecessary_procs; do
+        if pgrep "$proc" >/dev/null 2>&1; then
+            log_verify "WARNING" "Unnecessary process $proc is running"
+            issues=$((issues + 1))
+        else
+            log_verify "OK" "Process $proc is not running"
+        fi
+    done
+    
+    return $issues
+}
+
+# Function to check kernel modules
+check_modules() {
+    log_verify "INFO" "Checking kernel modules..."
+    
+    local issues=0
+    
+    # Check for blacklisted modules
+    local blacklisted_modules="bluetooth btusb usb_storage"
+    for module in $blacklisted_modules; do
+        if lsmod | grep -q "^$module"; then
+            log_verify "WARNING" "Blacklisted module $module is loaded"
+            issues=$((issues + 1))
+        else
+            log_verify "OK" "Module $module is not loaded"
+        fi
+    done
+    
+    return $issues
+}
+
+# Function to run comprehensive security check
+run_comprehensive_check() {
+    log_verify "INFO" "Starting comprehensive security verification..."
+    
+    local total_issues=0
+    
+    check_services
+    total_issues=$((total_issues + $?))
+    
+    check_filesystem
+    total_issues=$((total_issues + $?))
+    
+    check_memory
+    total_issues=$((total_issues + $?))
+    
+    check_network
+    total_issues=$((total_issues + $?))
+    
+    check_processes
+    total_issues=$((total_issues + $?))
+    
+    check_modules
+    total_issues=$((total_issues + $?))
+    
+    echo
+    if [ $total_issues -eq 0 ]; then
+        log_verify "SUCCESS" "Security verification passed - no issues found"
+        return 0
+    else
+        log_verify "WARNING" "Security verification completed with $total_issues issues"
+        return 1
+    fi
+}
+
+# Function to show security status summary
+show_status_summary() {
+    echo "PPPwn Live System - Security Status Summary"
+    echo "=========================================="
+    echo
+    
+    # System hardening status
+    if [ -f "/usr/bin/security-hardening" ]; then
+        echo "Security Hardening: INSTALLED"
+    else
+        echo "Security Hardening: NOT INSTALLED"
+    fi
+    
+    # Memory clearing status
+    if pgrep "periodic-memory-clear" >/dev/null 2>&1; then
+        echo "Memory Clearing: ACTIVE"
+    else
+        echo "Memory Clearing: INACTIVE"
+    fi
+    
+    # Shutdown security status
+    if [ -f "/usr/bin/secure-shutdown" ]; then
+        echo "Secure Shutdown: INSTALLED"
+    else
+        echo "Secure Shutdown: NOT INSTALLED"
+    fi
+    
+    # Configuration status
+    if [ "$disable_unused_services" = "true" ]; then
+        echo "Service Hardening: ENABLED"
+    else
+        echo "Service Hardening: DISABLED"
+    fi
+    
+    if [ "$clear_memory_on_shutdown" = "true" ]; then
+        echo "Memory Protection: ENABLED"
+    else
+        echo "Memory Protection: DISABLED"
+    fi
+    
+    echo
+}
+
+# Main function
+main() {
+    local action="${1:-check}"
+    
+    # Create log file
+    touch "$VERIFICATION_LOG"
+    
+    case "$action" in
+        "check")
+            run_comprehensive_check
+            ;;
+        "status")
+            show_status_summary
+            ;;
+        "services")
+            check_services
+            ;;
+        "filesystem")
+            check_filesystem
+            ;;
+        "memory")
+            check_memory
+            ;;
+        "network")
+            check_network
+            ;;
+        "processes")
+            check_processes
+            ;;
+        "modules")
+            check_modules
+            ;;
+        *)
+            echo "Usage: $0 {check|status|services|filesystem|memory|network|processes|modules}"
+            echo "  check      - Run comprehensive security verification"
+            echo "  status     - Show security status summary"
+            echo "  services   - Check service security only"
+            echo "  filesystem - Check filesystem security only"
+            echo "  memory     - Check memory security only"
+            echo "  network    - Check network security only"
+            echo "  processes  - Check running processes only"
+            echo "  modules    - Check kernel modules only"
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function
+main "$@"

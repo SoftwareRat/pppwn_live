@@ -1,0 +1,84 @@
+name: Manual Build and Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: 'Buildroot configuration'
+        required: true
+        default: 'pppwn_defconfig'
+        type: choice
+        options:
+          - pppwn_defconfig
+      architecture:
+        description: 'Target architecture'
+        required: true
+        default: 'x86_64'
+        type: choice
+        options:
+          - x86_64
+      upload-type:
+        description: 'Upload type'
+        required: true
+        default: 'artifact'
+        type: choice
+        options:
+          - artifact
+          - release
+      release-version:
+        description: 'Release version (only for release upload)'
+        required: false
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  manual-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Validate inputs
+      run: |
+        if [ "${{ inputs.upload-type }}" = "release" ] && [ -z "${{ inputs.release-version }}" ]; then
+          echo "Error: Release version is required for release upload"
+          exit 1
+        fi
+        
+        echo "## Manual Build Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- **Configuration**: ${{ inputs.config }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Architecture**: ${{ inputs.architecture }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Upload Type**: ${{ inputs.upload-type }}" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ inputs.upload-type }}" = "release" ]; then
+          echo "- **Release Version**: ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Pre-release**: ${{ inputs.prerelease }}" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Build ISO
+      uses: ./.github/workflows/build.yml
+      with:
+        config: ${{ inputs.config }}
+        architecture: ${{ inputs.architecture }}
+        upload-artifacts: ${{ inputs.upload-type == 'artifact' }}
+
+    - name: Create release
+      if: inputs.upload-type == 'release'
+      uses: ./.github/workflows/release.yml
+      with:
+        version: ${{ inputs.release-version }}
+        prerelease: ${{ inputs.prerelease }}
+
+    - name: Build summary
+      run: |
+        echo "## Manual Build Completed" >> $GITHUB_STEP_SUMMARY
+        echo "Build completed successfully with the following configuration:" >> $GITHUB_STEP_SUMMARY
+        echo "- Configuration: ${{ inputs.config }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Architecture: ${{ inputs.architecture }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ inputs.upload-type }}" = "artifact" ]; then
+          echo "- Artifacts uploaded to workflow run" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- Release created: ${{ inputs.release-version }}" >> $GITHUB_STEP_SUMMARY
+        fi

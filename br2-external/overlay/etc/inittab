@@ -1,0 +1,18 @@
+# /etc/inittab - Buildroot inittab for PPPwn Live System
+
+# System initialization
+::sysinit:/etc/init.d/rcS
+
+# Auto-login on tty1 for PPPwn execution
+tty1::respawn:/sbin/getty -L 0 tty1 -a root
+
+# Additional ttys for debugging if needed
+tty2::respawn:/sbin/getty -L 0 tty2
+tty3::respawn:/sbin/getty -L 0 tty3
+
+# Serial console for debugging
+ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100
+
+# System shutdown
+::shutdown:/etc/init.d/rcK
+::restart:/sbin/init

@@ -1,0 +1,160 @@
+name: Build Status Report
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration", "Build PPPwn Live ISO", "Create Release"]
+    types: [completed]
+
+jobs:
+  report-status:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion != 'skipped'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Generate status report
+      run: |
+        WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+        CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+        RUN_URL="${{ github.event.workflow_run.html_url }}"
+        COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+        BRANCH="${{ github.event.workflow_run.head_branch }}"
+        
+        echo "## Build Status Report" >> status-report.md
+        echo "" >> status-report.md
+        echo "**Workflow**: $WORKFLOW_NAME" >> status-report.md
+        echo "**Status**: $CONCLUSION" >> status-report.md
+        echo "**Branch**: $BRANCH" >> status-report.md
+        echo "**Commit**: $COMMIT_SHA" >> status-report.md
+        echo "**Run URL**: $RUN_URL" >> status-report.md
+        echo "**Timestamp**: $(date -u)" >> status-report.md
+        echo "" >> status-report.md
+        
+        if [ "$CONCLUSION" = "success" ]; then
+          echo "✅ **Build completed successfully!**" >> status-report.md
+          echo "" >> status-report.md
+          echo "### Next Steps" >> status-report.md
+          if [ "$WORKFLOW_NAME" = "Create Release" ]; then
+            echo "- Release artifacts have been published" >> status-report.md
+            echo "- ISO is available for download" >> status-report.md
+          elif [ "$WORKFLOW_NAME" = "Continuous Integration" ]; then
+            echo "- Build artifacts are available in the workflow run" >> status-report.md
+            echo "- Consider creating a release if this is a stable build" >> status-report.md
+          fi
+        elif [ "$CONCLUSION" = "failure" ]; then
+          echo "❌ **Build failed!**" >> status-report.md
+          echo "" >> status-report.md
+          echo "### Troubleshooting" >> status-report.md
+          echo "- Check the workflow logs for detailed error information" >> status-report.md
+          echo "- Verify that all required files are present" >> status-report.md
+          echo "- Ensure Buildroot configuration is valid" >> status-report.md
+          echo "- Check for syntax errors in overlay scripts" >> status-report.md
+        elif [ "$CONCLUSION" = "cancelled" ]; then
+          echo "⚠️ **Build was cancelled**" >> status-report.md
+        else
+          echo "❓ **Build completed with status: $CONCLUSION**" >> status-report.md
+        fi
+        
+        echo "" >> status-report.md
+        echo "---" >> status-report.md
+        echo "*This report was generated automatically by the Build Status Report workflow.*" >> status-report.md
+
+    - name: Create status issue on failure
+      if: github.event.workflow_run.conclusion == 'failure'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const statusReport = fs.readFileSync('status-report.md', 'utf8');
+          
+          // Check if there's already an open issue for build failures
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'build-failure'
+          });
+          
+          const existingIssue = issues.data.find(issue => 
+            issue.title.includes('Build Failure') && 
+            issue.labels.some(label => label.name === 'build-failure')
+          );
+          
+          if (existingIssue) {
+            // Update existing issue
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existingIssue.number,
+              body: `## New Build Failure Report\n\n${statusReport}`
+            });
+          } else {
+            // Create new issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Build Failure - ${{ github.event.workflow_run.name }}`,
+              body: statusReport,
+              labels: ['build-failure', 'bug']
+            });
+          }
+
+    - name: Close build failure issues on success
+      if: github.event.workflow_run.conclusion == 'success'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Find open build failure issues
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'build-failure'
+          });
+          
+          // Close them with a success comment
+          for (const issue of issues.data) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: '✅ Build is now successful. Closing this issue.\n\nWorkflow: ${{ github.event.workflow_run.name }}\nCommit: ${{ github.event.workflow_run.head_sha }}'
+            });
+            
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              state: 'closed'
+            });
+          }
+
+    - name: Update status in README (if exists)
+      run: |
+        if [ -f "README.md" ]; then
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          
+          # Create or update build status badge
+          if [ "$CONCLUSION" = "success" ]; then
+            STATUS_BADGE="![Build Status](https://img.shields.io/badge/build-passing-brightgreen)"
+          elif [ "$CONCLUSION" = "failure" ]; then
+            STATUS_BADGE="![Build Status](https://img.shields.io/badge/build-failing-red)"
+          else
+            STATUS_BADGE="![Build Status](https://img.shields.io/badge/build-$CONCLUSION-yellow)"
+          fi
+          
+          echo "Build status: $STATUS_BADGE"
+          echo "Last updated: $(date -u)" 
+        fi
+
+    - name: Summary
+      run: |
+        echo "## Build Status Summary" >> $GITHUB_STEP_SUMMARY
+        echo "**Workflow**: ${{ github.event.workflow_run.name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: ${{ github.event.workflow_run.conclusion }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch**: ${{ github.event.workflow_run.head_branch }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit**: ${{ github.event.workflow_run.head_sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Run URL**: ${{ github.event.workflow_run.html_url }}" >> $GITHUB_STEP_SUMMARY

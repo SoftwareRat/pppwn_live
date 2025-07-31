@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# Security Hardening Init Script for PPPwn Live System
+# Applies security hardening measures during system startup
+#
+
+DAEMON="security-hardening"
+DAEMON_BIN="/usr/bin/security-hardening"
+
+# Source function library
+. /etc/init.d/functions
+
+start() {
+    printf "Starting $DAEMON: "
+    
+    if [ -x "$DAEMON_BIN" ]; then
+        $DAEMON_BIN apply
+        if [ $? -eq 0 ]; then
+            echo "OK"
+        else
+            echo "FAIL"
+            return 1
+        fi
+    else
+        echo "FAIL - binary not found"
+        return 1
+    fi
+}
+
+stop() {
+    printf "Stopping $DAEMON: "
+    # Security hardening doesn't need to be "stopped"
+    # but we can run memory clearing on shutdown
+    if [ -x "$DAEMON_BIN" ]; then
+        $DAEMON_BIN clear-all-memory
+    fi
+    echo "OK"
+}
+
+restart() {
+    stop
+    start
+}
+
+status() {
+    if [ -x "$DAEMON_BIN" ]; then
+        $DAEMON_BIN verify
+    else
+        echo "$DAEMON is not available"
+        return 1
+    fi
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart|reload)
+        restart
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+esac
+
+exit $?

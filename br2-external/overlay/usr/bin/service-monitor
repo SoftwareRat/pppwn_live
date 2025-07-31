@@ -1,0 +1,313 @@
+#!/bin/sh
+#
+# Service Monitor for PPPwn Live System
+# Monitors critical services and restarts them if they fail
+#
+
+# Configuration
+MONITOR_INTERVAL=10
+MAX_RESTART_ATTEMPTS=3
+RESTART_DELAY=5
+LOG_FILE="/var/log/service-monitor.log"
+
+# Services to monitor (service_name:check_command:restart_command)
+MONITORED_SERVICES="
+network-detect:/tmp/pppwn_interface:/etc/init.d/S98network-detect restart
+pppwn-setup:/tmp/pppwn-status/system:/etc/init.d/S95pppwn-setup restart
+"
+
+# Logging function
+log_message() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] $1" | tee -a "$LOG_FILE"
+    logger -t service-monitor "$1"
+}
+
+# Function to check if a service is healthy
+check_service_health() {
+    local service_name="$1"
+    local check_command="$2"
+    
+    case "$check_command" in
+        /tmp/*)
+            # File-based health check
+            if [ -f "$check_command" ]; then
+                local status=$(cat "$check_command" 2>/dev/null)
+                case "$status" in
+                    "READY"|"OK"|"SUCCESS")
+                        return 0
+                        ;;
+                    "FAILED"|"ERROR"|"TIMEOUT")
+                        return 1
+                        ;;
+                    *)
+                        # Still in progress, consider healthy for now
+                        return 0
+                        ;;
+                esac
+            else
+                # File doesn't exist, service might not have started yet
+                return 2  # Unknown status
+            fi
+            ;;
+        *)
+            # Command-based health check
+            if eval "$check_command" >/dev/null 2>&1; then
+                return 0
+            else
+                return 1
+            fi
+            ;;
+    esac
+}
+
+# Function to restart a service
+restart_service() {
+    local service_name="$1"
+    local restart_command="$2"
+    local attempt="$3"
+    
+    log_message "Attempting to restart $service_name (attempt $attempt)"
+    
+    if eval "$restart_command" >/dev/null 2>&1; then
+        log_message "Successfully restarted $service_name"
+        return 0
+    else
+        log_message "Failed to restart $service_name"
+        return 1
+    fi
+}
+
+# Function to handle service failure
+handle_service_failure() {
+    local service_name="$1"
+    local restart_command="$2"
+    
+    # Get current restart count for this service
+    local count_file="/tmp/service-monitor-$service_name-count"
+    local restart_count=0
+    
+    if [ -f "$count_file" ]; then
+        restart_count=$(cat "$count_file")
+    fi
+    
+    restart_count=$((restart_count + 1))
+    echo "$restart_count" > "$count_file"
+    
+    log_message "Service $service_name failed (failure count: $restart_count)"
+    
+    if [ $restart_count -le $MAX_RESTART_ATTEMPTS ]; then
+        log_message "Waiting $RESTART_DELAY seconds before restart attempt..."
+        sleep $RESTART_DELAY
+        
+        if restart_service "$service_name" "$restart_command" "$restart_count"; then
+            # Reset failure count on successful restart
+            rm -f "$count_file"
+            return 0
+        else
+            return 1
+        fi
+    else
+        log_message "Maximum restart attempts ($MAX_RESTART_ATTEMPTS) exceeded for $service_name"
+        log_message "Marking service $service_name as permanently failed"
+        
+        # Create permanent failure marker
+        echo "PERMANENT_FAILURE" > "/tmp/service-monitor-$service_name-status"
+        
+        # Check if this is a critical service that should trigger shutdown
+        case "$service_name" in
+            "network-detect")
+                log_message "Critical network service failed permanently - triggering emergency shutdown"
+                echo "critical-error" > /tmp/shutdown-triggers/critical-error
+                echo "Network detection service failed permanently after $MAX_RESTART_ATTEMPTS attempts" > /tmp/shutdown-triggers/critical-error
+                ;;
+            "pppwn-setup")
+                log_message "Critical PPPwn setup service failed permanently - triggering emergency shutdown"
+                echo "critical-error" > /tmp/shutdown-triggers/critical-error
+                echo "PPPwn setup service failed permanently after $MAX_RESTART_ATTEMPTS attempts" > /tmp/shutdown-triggers/critical-error
+                ;;
+        esac
+        
+        return 1
+    fi
+}
+
+# Function to monitor all services
+monitor_services() {
+    log_message "Service monitor started (PID: $$)"
+    
+    # Create monitoring directory
+    mkdir -p /tmp/service-monitor
+    
+    while true; do
+        # Parse and check each monitored service
+        echo "$MONITORED_SERVICES" | while IFS= read -r service_line; do
+            # Skip empty lines
+            [ -z "$service_line" ] && continue
+            
+            # Parse service configuration
+            service_name=$(echo "$service_line" | cut -d':' -f1)
+            check_command=$(echo "$service_line" | cut -d':' -f2)
+            restart_command=$(echo "$service_line" | cut -d':' -f3)
+            
+            # Skip if service is permanently failed
+            if [ -f "/tmp/service-monitor-$service_name-status" ]; then
+                status=$(cat "/tmp/service-monitor-$service_name-status")
+                if [ "$status" = "PERMANENT_FAILURE" ]; then
+                    continue
+                fi
+            fi
+            
+            # Check service health
+            check_service_health "$service_name" "$check_command"
+            health_status=$?
+            
+            case $health_status in
+                0)
+                    # Service is healthy
+                    # Reset failure count if it exists
+                    rm -f "/tmp/service-monitor-$service_name-count"
+                    ;;
+                1)
+                    # Service is unhealthy
+                    log_message "Service $service_name is unhealthy"
+                    handle_service_failure "$service_name" "$restart_command"
+                    ;;
+                2)
+                    # Unknown status (service might not have started yet)
+                    # Don't take action, just log
+                    log_message "Service $service_name status unknown (may be starting)"
+                    ;;
+            esac
+        done
+        
+        # Check for shutdown triggers
+        if [ -f /tmp/shutdown-triggers/critical-error ]; then
+            log_message "Critical error detected - service monitor exiting"
+            break
+        fi
+        
+        sleep $MONITOR_INTERVAL
+    done
+    
+    log_message "Service monitor stopped"
+}
+
+# Function to show monitoring status
+show_status() {
+    echo "Service Monitor Status:"
+    echo "======================"
+    
+    if [ -f /var/run/service-monitor.pid ] && kill -0 $(cat /var/run/service-monitor.pid) 2>/dev/null; then
+        echo "Monitor: RUNNING (PID: $(cat /var/run/service-monitor.pid))"
+    else
+        echo "Monitor: STOPPED"
+    fi
+    
+    echo
+    echo "Monitored Services:"
+    
+    echo "$MONITORED_SERVICES" | while IFS= read -r service_line; do
+        [ -z "$service_line" ] && continue
+        
+        service_name=$(echo "$service_line" | cut -d':' -f1)
+        check_command=$(echo "$service_line" | cut -d':' -f2)
+        
+        printf "  %-15s: " "$service_name"
+        
+        if [ -f "/tmp/service-monitor-$service_name-status" ]; then
+            status=$(cat "/tmp/service-monitor-$service_name-status")
+            echo "$status"
+        else
+            check_service_health "$service_name" "$check_command"
+            case $? in
+                0) echo "HEALTHY" ;;
+                1) echo "UNHEALTHY" ;;
+                2) echo "UNKNOWN" ;;
+            esac
+        fi
+        
+        # Show restart count if exists
+        if [ -f "/tmp/service-monitor-$service_name-count" ]; then
+            count=$(cat "/tmp/service-monitor-$service_name-count")
+            echo "    Restart attempts: $count"
+        fi
+    done
+}
+
+# Function to start monitoring in background
+start_monitor() {
+    if [ -f /var/run/service-monitor.pid ] && kill -0 $(cat /var/run/service-monitor.pid) 2>/dev/null; then
+        echo "Service monitor is already running"
+        return 1
+    fi
+    
+    # Start monitor in background
+    monitor_services &
+    local monitor_pid=$!
+    
+    echo $monitor_pid > /var/run/service-monitor.pid
+    echo "Service monitor started (PID: $monitor_pid)"
+    
+    return 0
+}
+
+# Function to stop monitoring
+stop_monitor() {
+    if [ -f /var/run/service-monitor.pid ]; then
+        local pid=$(cat /var/run/service-monitor.pid)
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -TERM "$pid" 2>/dev/null
+            
+            # Wait for graceful shutdown
+            local timeout=10
+            while [ $timeout -gt 0 ] && kill -0 "$pid" 2>/dev/null; do
+                sleep 1
+                timeout=$((timeout - 1))
+            done
+            
+            # Force kill if still running
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -KILL "$pid" 2>/dev/null
+            fi
+            
+            echo "Service monitor stopped"
+        fi
+        rm -f /var/run/service-monitor.pid
+    else
+        echo "Service monitor is not running"
+    fi
+}
+
+# Main execution
+case "$1" in
+    "start")
+        start_monitor
+        ;;
+    "stop")
+        stop_monitor
+        ;;
+    "restart")
+        stop_monitor
+        sleep 2
+        start_monitor
+        ;;
+    "status")
+        show_status
+        ;;
+    "monitor")
+        # Run in foreground for debugging
+        monitor_services
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status|monitor}"
+        echo
+        echo "Commands:"
+        echo "  start   - Start service monitoring in background"
+        echo "  stop    - Stop service monitoring"
+        echo "  restart - Restart service monitoring"
+        echo "  status  - Show monitoring status"
+        echo "  monitor - Run monitoring in foreground (debug mode)"
+        exit 1
+        ;;
+esac

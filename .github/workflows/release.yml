@@ -1,0 +1,165 @@
+name: Create Release
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'br2-external/**'
+      - 'configs/**'
+      - 'stage1/**'
+      - 'stage2/**'
+      - 'old_pppwnlive/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: false
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  BUILDROOT_VERSION: "2025.05"
+
+jobs:
+  build-for-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release-notes: ${{ steps.notes.outputs.notes }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate version
+      id: version
+      run: |
+        if [ -n "${{ inputs.version }}" ]; then
+          VERSION="${{ inputs.version }}"
+        else
+          # Generate version based on date and commit
+          DATE=$(date +%Y.%m.%d)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          VERSION="v${DATE}-${SHORT_SHA}"
+        fi
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "Generated version: ${VERSION}"
+
+    - name: Generate release notes
+      id: notes
+      run: |
+        echo "## PPPwn Live ISO Release ${VERSION}" > release-notes.md
+        echo "" >> release-notes.md
+        echo "### Build Information" >> release-notes.md
+        echo "- **Build Date**: $(date -u)" >> release-notes.md
+        echo "- **Buildroot Version**: ${{ env.BUILDROOT_VERSION }}" >> release-notes.md
+        echo "- **Commit SHA**: ${{ github.sha }}" >> release-notes.md
+        echo "- **Architecture**: x86_64" >> release-notes.md
+        echo "" >> release-notes.md
+        
+        echo "### Changes in this Release" >> release-notes.md
+        if [ "${{ github.event_name }}" = "push" ]; then
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            echo "Changes since $LAST_TAG:" >> release-notes.md
+            git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD >> release-notes.md
+          else
+            echo "Initial release" >> release-notes.md
+          fi
+        else
+          echo "Manual release triggered" >> release-notes.md
+        fi
+        
+        echo "" >> release-notes.md
+        echo "### Usage Instructions" >> release-notes.md
+        echo "1. Download the \`pppwn-live-x86_64.iso\` file" >> release-notes.md
+        echo "2. Write the ISO to a USB drive or burn to CD/DVD" >> release-notes.md
+        echo "3. Boot from the USB/CD on your x64 PC" >> release-notes.md
+        echo "4. Connect your PS4 via Ethernet" >> release-notes.md
+        echo "5. Follow the on-screen instructions" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### System Requirements" >> release-notes.md
+        echo "- x64 PC with UEFI or BIOS boot support" >> release-notes.md
+        echo "- Ethernet port for PS4 connection" >> release-notes.md
+        echo "- Minimum 512MB RAM" >> release-notes.md
+        
+        # Output for GitHub Actions
+        {
+          echo "notes<<EOF"
+          cat release-notes.md
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+
+    - name: Build ISO
+      uses: ./.github/workflows/build.yml
+      with:
+        config: 'pppwn_defconfig'
+        architecture: 'x86_64'
+        upload-artifacts: false
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        
+        # Copy ISO with proper naming
+        if [ -f "buildroot/output/images/pppwn-live-x86_64.iso" ]; then
+          cp buildroot/output/images/pppwn-live-x86_64.iso release-assets/
+          
+          # Generate checksums
+          cd release-assets
+          sha256sum pppwn-live-x86_64.iso > pppwn-live-x86_64.iso.sha256
+          md5sum pppwn-live-x86_64.iso > pppwn-live-x86_64.iso.md5
+          cd ..
+        else
+          echo "Error: ISO file not found"
+          exit 1
+        fi
+        
+        # Copy release notes
+        cp release-notes.md release-assets/
+        
+        # Create build info file
+        echo "PPPwn Live ISO Build Information" > release-assets/build-info.txt
+        echo "=================================" >> release-assets/build-info.txt
+        echo "Version: ${{ steps.version.outputs.version }}" >> release-assets/build-info.txt
+        echo "Build Date: $(date -u)" >> release-assets/build-info.txt
+        echo "Buildroot Version: ${{ env.BUILDROOT_VERSION }}" >> release-assets/build-info.txt
+        echo "Commit SHA: ${{ github.sha }}" >> release-assets/build-info.txt
+        echo "Architecture: x86_64" >> release-assets/build-info.txt
+        
+        # List all files with sizes
+        echo "" >> release-assets/build-info.txt
+        echo "Release Assets:" >> release-assets/build-info.txt
+        echo "===============" >> release-assets/build-info.txt
+        ls -lh release-assets/ >> release-assets/build-info.txt
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: PPPwn Live ISO ${{ steps.version.outputs.version }}
+        body: ${{ steps.notes.outputs.notes }}
+        files: |
+          release-assets/pppwn-live-x86_64.iso
+          release-assets/pppwn-live-x86_64.iso.sha256
+          release-assets/pppwn-live-x86_64.iso.md5
+          release-assets/build-info.txt
+        prerelease: ${{ inputs.prerelease || false }}
+        generate_release_notes: false
+        make_latest: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload artifacts for backup
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-${{ steps.version.outputs.version }}
+        path: release-assets/
+        retention-days: 90

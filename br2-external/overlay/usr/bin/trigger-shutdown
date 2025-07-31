@@ -1,0 +1,59 @@
+#!/bin/sh
+#
+# Shutdown Trigger Utility for PPPwn Live System
+# Provides a standardized way to trigger system shutdowns
+#
+
+# Configuration
+TRIGGER_DIR="/tmp/shutdown-triggers"
+
+# Ensure trigger directory exists
+mkdir -p "$TRIGGER_DIR"
+
+# Function to trigger shutdown
+trigger_shutdown() {
+    local shutdown_type="$1"
+    local reason="$2"
+    
+    if [ -z "$shutdown_type" ]; then
+        echo "Usage: $0 {emergency|error|timeout|success} [reason]"
+        exit 1
+    fi
+    
+    # Log the shutdown trigger
+    logger -t trigger-shutdown "Shutdown triggered: type=$shutdown_type, reason=$reason"
+    
+    # Create appropriate trigger file
+    case "$shutdown_type" in
+        "emergency")
+            echo "$reason" > "$TRIGGER_DIR/emergency"
+            ;;
+        "error")
+            echo "$reason" > "$TRIGGER_DIR/critical-error"
+            ;;
+        "timeout")
+            echo "$reason" > "$TRIGGER_DIR/system-timeout"
+            ;;
+        "success")
+            # For success, we can call secure-shutdown directly
+            if [ -x /usr/bin/secure-shutdown ]; then
+                /usr/bin/secure-shutdown success "$reason"
+            else
+                echo "$reason" > "$TRIGGER_DIR/success"
+            fi
+            ;;
+        *)
+            echo "Invalid shutdown type: $shutdown_type"
+            echo "Valid types: emergency, error, timeout, success"
+            exit 1
+            ;;
+    esac
+    
+    echo "Shutdown trigger activated: $shutdown_type"
+    if [ -n "$reason" ]; then
+        echo "Reason: $reason"
+    fi
+}
+
+# Main execution
+trigger_shutdown "$@"

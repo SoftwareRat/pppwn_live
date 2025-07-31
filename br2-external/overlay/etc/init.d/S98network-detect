@@ -1,0 +1,128 @@
+#!/bin/sh
+#
+# Network Detection Service for PPPwn Live System
+# Detects and configures network interfaces for PS4 communication
+#
+
+DAEMON="network-detect"
+PIDFILE="/var/run/$DAEMON.pid"
+
+# Source configuration
+[ -f /etc/pppwn/config ] && . /etc/pppwn/config
+
+start() {
+    printf "Starting $DAEMON: "
+    
+    # Check if already running
+    if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+        echo "ALREADY RUNNING"
+        return 0
+    fi
+    
+    # Check if network-detector binary exists
+    if [ ! -x /usr/bin/network-detector ]; then
+        echo "FAILED - network-detector binary not found"
+        return 1
+    fi
+    
+    # Run network detection in background for better service orchestration
+    (/usr/bin/network-detector) &
+    local detector_pid=$!
+    echo $detector_pid > "$PIDFILE"
+    
+    # Wait a moment to see if it starts successfully
+    sleep 2
+    
+    if kill -0 "$detector_pid" 2>/dev/null; then
+        echo "OK"
+        return 0
+    else
+        # Process finished quickly, check if it was successful
+        wait "$detector_pid"
+        local exit_code=$?
+        rm -f "$PIDFILE"
+        
+        if [ $exit_code -eq 0 ]; then
+            echo "OK"
+            return 0
+        else
+            echo "FAILED"
+            return 1
+        fi
+    fi
+}
+
+stop() {
+    printf "Stopping $DAEMON: "
+    
+    if [ -f "$PIDFILE" ]; then
+        local pid=$(cat "$PIDFILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -TERM "$pid" 2>/dev/null
+            
+            # Wait for graceful shutdown
+            local timeout=10
+            while [ $timeout -gt 0 ] && kill -0 "$pid" 2>/dev/null; do
+                sleep 1
+                timeout=$((timeout - 1))
+            done
+            
+            # Force kill if still running
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -KILL "$pid" 2>/dev/null
+            fi
+        fi
+        rm -f "$PIDFILE"
+    fi
+    
+    echo "OK"
+    return 0
+}
+
+restart() {
+    stop
+    start
+}
+
+status() {
+    if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+        echo "$DAEMON is running (PID: $(cat "$PIDFILE"))"
+        return 0
+    else
+        echo "$DAEMON is not running"
+        
+        # Show network detection status if available
+        if [ -f /tmp/pppwn_interface ]; then
+            local interface=$(cat /tmp/pppwn_interface)
+            local ip=$(cat /tmp/pppwn_ip 2>/dev/null || echo "unknown")
+            echo "Network configured: $interface ($ip)"
+        elif [ -f /tmp/pppwn_error ]; then
+            local error=$(cat /tmp/pppwn_error)
+            echo "Network detection failed: $error"
+        else
+            echo "Network detection not completed"
+        fi
+        
+        return 1
+    fi
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart|reload)
+        restart
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+esac
+
+exit $?

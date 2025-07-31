@@ -1,0 +1,422 @@
+#!/bin/sh
+#
+# Error Reporting and Logging Framework for PPPwn Live System
+# Provides standardized error codes, logging, and user-friendly error messages
+#
+
+# Configuration
+ERROR_LOG_FILE="/tmp/pppwn_errors.log"
+DEBUG_LOG_FILE="/tmp/pppwn_debug.log"
+SYSTEM_LOG_TAG="pppwn-error"
+MAX_LOG_SIZE=1048576  # 1MB
+COLOR_OUTPUT="${color_output:-true}"
+
+# Color definitions for error display
+if [ "$COLOR_OUTPUT" = "true" ]; then
+    RED='\033[1;31m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;34m'
+    CYAN='\033[1;36m'
+    WHITE='\033[1;37m'
+    RESET='\033[0m'
+else
+    RED='' YELLOW='' BLUE='' CYAN='' WHITE='' RESET=''
+fi
+
+# Standardized error codes
+ERROR_CODES="
+E001:NETWORK_INTERFACE_NOT_FOUND:No suitable Ethernet interface found
+E002:NETWORK_CONFIGURATION_FAILED:Failed to configure network interface
+E003:NETWORK_LINK_DOWN:Physical network link is down
+E004:DHCP_TIMEOUT:DHCP configuration timed out
+E005:STATIC_IP_FAILED:Static IP configuration failed
+E006:PS4_DETECTION_FAILED:PS4 console not detected on network
+E007:PPPWN_BINARY_NOT_FOUND:PPPwn binary not found or not executable
+E008:STAGE_FILES_MISSING:PPPwn stage1 or stage2 files missing
+E009:FIRMWARE_VERSION_INVALID:Invalid firmware version format
+E010:EXPLOIT_EXECUTION_FAILED:PPPwn exploit execution failed
+E011:EXPLOIT_TIMEOUT:PPPwn exploit execution timed out
+E012:SYSTEM_PREREQUISITES_FAILED:System prerequisites check failed
+E013:MEMORY_CLEAR_FAILED:Failed to clear sensitive memory data
+E014:SHUTDOWN_SEQUENCE_FAILED:Secure shutdown sequence failed
+E015:CONFIG_FILE_INVALID:Configuration file is invalid or corrupted
+E016:PERMISSION_DENIED:Insufficient permissions for operation
+E017:DISK_SPACE_LOW:Insufficient disk space for operation
+E018:SERVICE_START_FAILED:Critical system service failed to start
+E019:HARDWARE_DETECTION_FAILED:Hardware detection failed
+E020:SECURITY_HARDENING_FAILED:Security hardening process failed
+W001:PS4_NOT_RESPONDING:PS4 console not responding to network requests
+W002:MULTIPLE_INTERFACES_FOUND:Multiple network interfaces found, using prioritized selection
+W003:DHCP_FALLBACK_STATIC:DHCP failed, falling back to static IP configuration
+W004:STAGE_FILE_VERSION_MISMATCH:Stage file version may not match firmware version
+W005:EXPLOIT_RETRY_REQUIRED:Exploit attempt failed, retry required
+W006:NETWORK_PERFORMANCE_DEGRADED:Network performance may be degraded
+W007:MEMORY_USAGE_HIGH:System memory usage is high
+W008:TIMEOUT_APPROACHING:Operation timeout approaching
+W009:CONFIG_USING_DEFAULTS:Using default configuration values
+W010:SERVICE_RESTART_REQUIRED:Service restart may be required
+I001:SYSTEM_STARTUP_COMPLETE:System startup completed successfully
+I002:NETWORK_CONFIGURED:Network interface configured successfully
+I003:PS4_DETECTED:PS4 console detected on network
+I004:EXPLOIT_STARTED:PPPwn exploit execution started
+I005:EXPLOIT_SUCCESS:PPPwn exploit completed successfully
+I006:SHUTDOWN_INITIATED:Secure shutdown sequence initiated
+I007:MEMORY_CLEARED:Sensitive memory data cleared successfully
+I008:CONFIG_LOADED:Configuration loaded successfully
+I009:SERVICE_STARTED:System service started successfully
+I010:HARDWARE_DETECTED:Hardware detection completed successfully
+"
+
+# Initialize logging
+init_logging() {
+    # Create log files if they don't exist
+    touch "$ERROR_LOG_FILE" "$DEBUG_LOG_FILE"
+    
+    # Rotate logs if they're too large
+    if [ -f "$ERROR_LOG_FILE" ] && [ $(stat -f%z "$ERROR_LOG_FILE" 2>/dev/null || stat -c%s "$ERROR_LOG_FILE" 2>/dev/null || echo 0) -gt $MAX_LOG_SIZE ]; then
+        mv "$ERROR_LOG_FILE" "${ERROR_LOG_FILE}.old"
+        touch "$ERROR_LOG_FILE"
+    fi
+    
+    if [ -f "$DEBUG_LOG_FILE" ] && [ $(stat -f%z "$DEBUG_LOG_FILE" 2>/dev/null || stat -c%s "$DEBUG_LOG_FILE" 2>/dev/null || echo 0) -gt $MAX_LOG_SIZE ]; then
+        mv "$DEBUG_LOG_FILE" "${DEBUG_LOG_FILE}.old"
+        touch "$DEBUG_LOG_FILE"
+    fi
+}
+
+# Get error details by code
+get_error_details() {
+    local error_code="$1"
+    echo "$ERROR_CODES" | grep "^$error_code:" | cut -d':' -f2-
+}
+
+# Get error message by code
+get_error_message() {
+    local error_code="$1"
+    echo "$ERROR_CODES" | grep "^$error_code:" | cut -d':' -f3
+}
+
+# Get error category by code
+get_error_category() {
+    local error_code="$1"
+    case "$error_code" in
+        E*) echo "ERROR" ;;
+        W*) echo "WARNING" ;;
+        I*) echo "INFO" ;;
+        *) echo "UNKNOWN" ;;
+    esac
+}
+
+# Log message to file and system logger
+log_message() {
+    local level="$1"
+    local error_code="$2"
+    local message="$3"
+    local context="$4"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local hostname=$(hostname)
+    local pid=$$
+    
+    # Format log entry
+    local log_entry="[$timestamp] [$hostname] [$pid] [$level] [$error_code] $message"
+    if [ -n "$context" ]; then
+        log_entry="$log_entry | Context: $context"
+    fi
+    
+    # Write to appropriate log file
+    case "$level" in
+        "ERROR"|"WARNING")
+            echo "$log_entry" >> "$ERROR_LOG_FILE"
+            ;;
+        "DEBUG"|"INFO")
+            echo "$log_entry" >> "$DEBUG_LOG_FILE"
+            ;;
+    esac
+    
+    # Also log to system logger
+    logger -t "$SYSTEM_LOG_TAG" "$level [$error_code]: $message"
+}
+
+# Display user-friendly error message
+display_error_message() {
+    local error_code="$1"
+    local custom_message="$2"
+    local context="$3"
+    local suggestions="$4"
+    
+    local category=$(get_error_category "$error_code")
+    local standard_message=$(get_error_message "$error_code")
+    local display_message="${custom_message:-$standard_message}"
+    
+    # Choose display color based on category
+    local color_code=""
+    case "$category" in
+        "ERROR") color_code="$RED" ;;
+        "WARNING") color_code="$YELLOW" ;;
+        "INFO") color_code="$BLUE" ;;
+        *) color_code="$WHITE" ;;
+    esac
+    
+    # Display formatted error message
+    echo
+    echo -e "${color_code}╔══════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${color_code}║                        $category                              ║${RESET}"
+    echo -e "${color_code}╠══════════════════════════════════════════════════════════════╣${RESET}"
+    echo -e "${color_code}║${RESET} ${WHITE}Code: $error_code${RESET}$(printf "%*s" $((53 - ${#error_code})) "")${color_code}║${RESET}"
+    echo -e "${color_code}║${RESET}                                                              ${color_code}║${RESET}"
+    
+    # Display message with word wrapping
+    echo "$display_message" | fold -s -w 58 | while IFS= read -r line; do
+        echo -e "${color_code}║${RESET} $line$(printf "%*s" $((58 - ${#line})) "")${color_code}║${RESET}"
+    done
+    
+    # Display context if provided
+    if [ -n "$context" ]; then
+        echo -e "${color_code}║${RESET}                                                              ${color_code}║${RESET}"
+        echo -e "${color_code}║${RESET} ${CYAN}Context:${RESET}$(printf "%*s" $((50)) "")${color_code}║${RESET}"
+        echo "$context" | fold -s -w 58 | while IFS= read -r line; do
+            echo -e "${color_code}║${RESET} $line$(printf "%*s" $((58 - ${#line})) "")${color_code}║${RESET}"
+        done
+    fi
+    
+    # Display suggestions if provided
+    if [ -n "$suggestions" ]; then
+        echo -e "${color_code}║${RESET}                                                              ${color_code}║${RESET}"
+        echo -e "${color_code}║${RESET} ${YELLOW}Suggested Actions:${RESET}$(printf "%*s" $((40)) "")${color_code}║${RESET}"
+        echo "$suggestions" | fold -s -w 56 | while IFS= read -r line; do
+            echo -e "${color_code}║${RESET} • $line$(printf "%*s" $((56 - ${#line})) "")${color_code}║${RESET}"
+        done
+    fi
+    
+    echo -e "${color_code}╚══════════════════════════════════════════════════════════════╝${RESET}"
+    echo
+}
+
+# Get default suggestions for error codes
+get_default_suggestions() {
+    local error_code="$1"
+    
+    case "$error_code" in
+        "E001") echo "Check Ethernet cable connections. Verify network adapter is recognized by system. Try different USB-to-Ethernet adapter if using one." ;;
+        "E002") echo "Restart network services. Check interface permissions. Verify network configuration syntax." ;;
+        "E003") echo "Check physical cable connections. Try different Ethernet cable. Verify PS4 network port is functional." ;;
+        "E004") echo "Check DHCP server availability. Try static IP configuration. Verify network connectivity." ;;
+        "E005") echo "Check IP address conflicts. Verify network subnet configuration. Try different static IP range." ;;
+        "E006") echo "Ensure PS4 is powered on and connected. Check PS4 network settings. Verify PS4 is not in rest mode." ;;
+        "E007") echo "Reinstall PPPwn components. Check file permissions. Verify system architecture compatibility." ;;
+        "E008") echo "Download latest PPPwn stage files. Check file integrity. Verify firmware version compatibility." ;;
+        "E009") echo "Use 4-digit firmware version format (e.g., 1100). Check PS4 system information for correct version." ;;
+        "E010") echo "Retry exploit execution. Check PS4 firmware version. Ensure PS4 is at main menu." ;;
+        "E011") echo "Increase timeout values. Check network performance. Retry with different timing." ;;
+        "E012") echo "Check system requirements. Verify all dependencies are installed. Restart system if needed." ;;
+        "W001") echo "Verify PS4 is powered on. Check network connectivity. PS4 may be in rest mode." ;;
+        "W003") echo "DHCP fallback is normal. Static IP configuration will be used instead." ;;
+        "W005") echo "Multiple exploit attempts are normal and expected for PPPwn." ;;
+        *) echo "Check system logs for more details. Restart the system if problem persists. Contact support if issue continues." ;;
+    esac
+}
+
+# Report error with full logging and display
+report_error() {
+    local error_code="$1"
+    local custom_message="$2"
+    local context="$3"
+    local suggestions="$4"
+    
+    # Initialize logging if not already done
+    init_logging
+    
+    # Get error details
+    local category=$(get_error_category "$error_code")
+    local standard_message=$(get_error_message "$error_code")
+    local final_message="${custom_message:-$standard_message}"
+    local final_suggestions="${suggestions:-$(get_default_suggestions "$error_code")}"
+    
+    # Log the error
+    log_message "$category" "$error_code" "$final_message" "$context"
+    
+    # Display user-friendly message
+    display_error_message "$error_code" "$final_message" "$context" "$final_suggestions"
+    
+    # Create error marker file for other scripts
+    echo "$error_code" > "/tmp/pppwn_last_error"
+    echo "$final_message" > "/tmp/pppwn_last_error_message"
+    
+    # Return appropriate exit code based on category
+    case "$category" in
+        "ERROR") return 1 ;;
+        "WARNING") return 2 ;;
+        "INFO") return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Quick error reporting function for scripts
+quick_error() {
+    local error_code="$1"
+    local context="$2"
+    report_error "$error_code" "" "$context" ""
+}
+
+# Debug logging function
+debug_log() {
+    local message="$1"
+    local context="$2"
+    
+    if [ "$verbose_output" = "true" ] || [ "$debug_mode" = "true" ]; then
+        init_logging
+        log_message "DEBUG" "DEBUG" "$message" "$context"
+        
+        if [ "$verbose_output" = "true" ]; then
+            echo -e "${CYAN}[DEBUG]${RESET} $message"
+        fi
+    fi
+}
+
+# Get error statistics
+get_error_stats() {
+    if [ ! -f "$ERROR_LOG_FILE" ]; then
+        echo "No error log found"
+        return 1
+    fi
+    
+    echo "Error Statistics:"
+    echo "=================="
+    echo "Total errors: $(grep -c '\[ERROR\]' "$ERROR_LOG_FILE" 2>/dev/null || echo 0)"
+    echo "Total warnings: $(grep -c '\[WARNING\]' "$ERROR_LOG_FILE" 2>/dev/null || echo 0)"
+    echo
+    echo "Most common errors:"
+    grep '\[ERROR\]' "$ERROR_LOG_FILE" 2>/dev/null | sed 's/.*\[\([^]]*\)\].*/\1/' | sort | uniq -c | sort -nr | head -5
+    echo
+    echo "Recent errors (last 10):"
+    tail -10 "$ERROR_LOG_FILE" 2>/dev/null | grep '\[ERROR\]' || echo "No recent errors"
+}
+
+# Clear error logs
+clear_error_logs() {
+    rm -f "$ERROR_LOG_FILE" "$DEBUG_LOG_FILE"
+    rm -f "/tmp/pppwn_last_error" "/tmp/pppwn_last_error_message"
+    echo "Error logs cleared"
+}
+
+# Export error log for debugging
+export_error_log() {
+    local export_file="${1:-/tmp/pppwn_error_export.log}"
+    
+    {
+        echo "PPPwn Live System Error Export"
+        echo "=============================="
+        echo "Generated: $(date)"
+        echo "Hostname: $(hostname)"
+        echo "Kernel: $(uname -a)"
+        echo
+        echo "System Information:"
+        echo "==================="
+        uptime
+        free -h 2>/dev/null || free
+        df -h 2>/dev/null || df
+        echo
+        echo "Network Interfaces:"
+        echo "==================="
+        ip addr show 2>/dev/null || ifconfig
+        echo
+        echo "Error Log:"
+        echo "=========="
+        cat "$ERROR_LOG_FILE" 2>/dev/null || echo "No error log available"
+        echo
+        echo "Debug Log (last 50 lines):"
+        echo "=========================="
+        tail -50 "$DEBUG_LOG_FILE" 2>/dev/null || echo "No debug log available"
+    } > "$export_file"
+    
+    echo "Error log exported to: $export_file"
+}
+
+# Help function
+show_help() {
+    echo "PPPwn Live System - Error Reporting and Logging Framework"
+    echo
+    echo "Usage: $0 [COMMAND] [OPTIONS]"
+    echo
+    echo "Commands:"
+    echo "  report ERROR_CODE [MESSAGE] [CONTEXT] [SUGGESTIONS]"
+    echo "                           - Report error with full logging and display"
+    echo "  quick ERROR_CODE [CONTEXT] - Quick error reporting"
+    echo "  debug MESSAGE [CONTEXT]  - Debug logging"
+    echo "  stats                    - Show error statistics"
+    echo "  clear                    - Clear error logs"
+    echo "  export [FILE]            - Export error log for debugging"
+    echo "  list-codes               - List all available error codes"
+    echo "  help                     - Show this help"
+    echo
+    echo "Error Code Format:"
+    echo "  E### - Error codes (critical issues)"
+    echo "  W### - Warning codes (non-critical issues)"
+    echo "  I### - Info codes (informational messages)"
+    echo
+    echo "Examples:"
+    echo "  $0 report E001 'Custom error message' 'Interface eth0'"
+    echo "  $0 quick W003 'DHCP timeout on eth0'"
+    echo "  $0 debug 'Network detection started' 'eth0 interface'"
+    echo "  $0 stats"
+}
+
+# List all error codes
+list_error_codes() {
+    echo "Available Error Codes:"
+    echo "======================"
+    echo "$ERROR_CODES" | grep -v '^$' | while IFS=':' read -r code category message; do
+        printf "%-6s %-8s %s\n" "$code" "[$category]" "$message"
+    done
+}
+
+# Main execution
+case "$1" in
+    "report")
+        if [ $# -ge 2 ]; then
+            report_error "$2" "$3" "$4" "$5"
+        else
+            echo "Usage: $0 report ERROR_CODE [MESSAGE] [CONTEXT] [SUGGESTIONS]"
+            exit 1
+        fi
+        ;;
+    "quick")
+        if [ $# -ge 2 ]; then
+            quick_error "$2" "$3"
+        else
+            echo "Usage: $0 quick ERROR_CODE [CONTEXT]"
+            exit 1
+        fi
+        ;;
+    "debug")
+        if [ $# -ge 2 ]; then
+            debug_log "$2" "$3"
+        else
+            echo "Usage: $0 debug MESSAGE [CONTEXT]"
+            exit 1
+        fi
+        ;;
+    "stats")
+        get_error_stats
+        ;;
+    "clear")
+        clear_error_logs
+        ;;
+    "export")
+        export_error_log "$2"
+        ;;
+    "list-codes")
+        list_error_codes
+        ;;
+    "help"|"--help"|"-h")
+        show_help
+        ;;
+    "")
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Use '$0 help' for usage information"
+        exit 1
+        ;;
+esac
