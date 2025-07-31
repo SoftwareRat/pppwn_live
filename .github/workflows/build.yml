@@ -19,6 +19,7 @@ jobs:
       run: |
         git clone --depth 1 --branch 2025.05 https://github.com/buildroot/buildroot
         cd buildroot
+        cp ../configs/pppwn_defconfig configs/
         make BR2_EXTERNAL=../br2-external pppwn_defconfig
         make -j$(nproc)
         mv output/images/rootfs.iso9660 output/images/pppwn-live.iso
