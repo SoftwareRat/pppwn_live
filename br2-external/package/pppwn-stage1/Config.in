@@ -3,19 +3,4 @@ config BR2_PACKAGE_PPPWN_STAGE1
 	help
 	  PPPwn stage1 payloads for various PS4 firmware versions.
 	  
-	  This package provides the stage1 payloads required for the
-	  PPPwn exploit execution. These payloads are firmware-specific
-	  and are used in the initial phase of the exploit.
-	  
 	  https://github.com/TheOfficialFloW/PPPwn
-
-if BR2_PACKAGE_PPPWN_STAGE1
-
-config BR2_PACKAGE_PPPWN_STAGE1_INSTALL_PATH
-	string "Installation path for stage1 payloads"
-	default "/usr/share/pppwn/stage1"
-	help
-	  Specify the target directory where stage1 payloads will be installed.
-	  Default is /usr/share/pppwn/stage1.
-
-endif
