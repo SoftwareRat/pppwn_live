@@ -1,30 +1,7 @@
-# PPPwn Live ISO Buildroot external configuration
-
 menu "PPPwn Live ISO packages"
 
-config BR2_PACKAGE_PPPWN_CPP
-	bool "pppwn-cpp"
-	depends on BR2_TOOLCHAIN_HAS_THREADS
-	depends on BR2_INSTALL_LIBSTDCPP
-	depends on BR2_TOOLCHAIN_GCC_AT_LEAST_7
-	select BR2_PACKAGE_HOST_CMAKE
-	help
-	  PPPwn C++ implementation for PS4 exploit execution.
-	  
-	  https://github.com/xfangfang/PPPwn_cpp
-
-config BR2_PACKAGE_PPPWN_STAGE1
-	bool "pppwn-stage1"
-	help
-	  PPPwn stage1 payloads for various PS4 firmware versions.
-	  
-	  https://github.com/TheOfficialFloW/PPPwn
-
-config BR2_PACKAGE_PPPWN_STAGE2
-	bool "pppwn-stage2"
-	help
-	  PPPwn stage2 payloads for various PS4 firmware versions.
-	  
-	  https://github.com/TheOfficialFloW/PPPwn
+source "$BR2_EXTERNAL_PPPWN_PATH/package/pppwn-cpp/Config.in"
+source "$BR2_EXTERNAL_PPPWN_PATH/package/pppwn-stage1/Config.in"
+source "$BR2_EXTERNAL_PPPWN_PATH/package/pppwn-stage2/Config.in"
 
 endmenu
