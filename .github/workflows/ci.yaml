@@ -36,7 +36,7 @@ jobs:
             alpine-conf
             xorriso
             squashfs-tools
-            qemu-binfmt
+            qemu-user-static
             grub
             grub-efi
             doas
