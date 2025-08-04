@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-# Set the hostname
+# Set the hostname:
 HOSTNAME="PPPwnLive"
 
 cleanup() {
