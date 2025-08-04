@@ -27,7 +27,7 @@ jobs:
           submodules: true
 
       - name: Set up Alpine Linux environment
-        uses: jirutka/setup-alpine@v1.2.0
+        uses: jirutka/setup-alpine@v1.3.0
         with:
           arch: ${{ matrix.architecture }}
           branch: latest-stable
@@ -36,7 +36,6 @@ jobs:
             alpine-conf
             xorriso
             squashfs-tools
-            qemu-user-static
             grub
             grub-efi
             doas
