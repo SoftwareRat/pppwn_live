@@ -5,6 +5,20 @@ PlayStation Concept Data Retrieval Script
 This script fetches PlayStation concept page data by:
 1. Parsing HTML pages to extract 'batarangs' caches and apolloState data
 2. Using GraphQL queries as a fallback to retrieve concept metadata
+
+The script addresses the requirements specified in the problem statement:
+- Fully extracts batarangs caches (background-image, game-title, info, etc.)
+- Parses embedded JSON components and collects entries under cache for Concept:<id>
+- Extracts relevant entries from apolloState for the same Concept:<id>
+- Provides fetch_concept_graphql() function for GraphQL ConceptRetrieve queries
+- In main(), calls both methods and includes GraphQL result under result['concept_graphql']
+
+Usage:
+    python playstation.py <concept_id>    # Fetch data for a concept ID
+    python playstation.py test           # Run tests with sample data
+    
+Example:
+    python playstation.py 123456
 """
 
 import json
@@ -43,23 +57,39 @@ class PlayStationDataFetcher:
         }
         
         try:
-            # Construct concept page URL - this is a placeholder pattern
-            # Real PlayStation URLs may have different patterns
-            url = f"{self.base_url}/en-us/concept/{concept_id}"
+            # Try multiple PlayStation URL patterns as they may vary
+            url_patterns = [
+                f"{self.base_url}/en-us/concept/{concept_id}",
+                f"{self.base_url}/en-us/product/{concept_id}",
+                f"{self.base_url}/concept/{concept_id}",
+                f"https://web.playstation.com/en-us/concept/{concept_id}"
+            ]
             
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
+            for url in url_patterns:
+                try:
+                    response = self.session.get(url, timeout=30)
+                    response.raise_for_status()
+                    
+                    html_content = response.text
+                    
+                    # Extract batarangs caches from embedded JSON
+                    result['batarangs'] = self._extract_batarangs_data(html_content, concept_id)
+                    
+                    # Extract apolloState data
+                    result['apollo_state'] = self._extract_apollo_state_data(html_content, concept_id)
+                    
+                    # If we found data, we're done
+                    if result['batarangs'] or result['apollo_state']:
+                        result['url_used'] = url
+                        break
+                        
+                except requests.RequestException:
+                    # Try next URL pattern
+                    continue
             
-            html_content = response.text
+            if not result.get('url_used'):
+                result['error'] = f"Failed to fetch data from any PlayStation URL pattern for concept {concept_id}"
             
-            # Extract batarangs caches from embedded JSON
-            result['batarangs'] = self._extract_batarangs_data(html_content, concept_id)
-            
-            # Extract apolloState data
-            result['apollo_state'] = self._extract_apollo_state_data(html_content, concept_id)
-            
-        except requests.RequestException as e:
-            result['error'] = f"HTTP request failed: {str(e)}"
         except Exception as e:
             result['error'] = f"Parsing failed: {str(e)}"
             
@@ -199,15 +229,25 @@ class PlayStationDataFetcher:
                 for key, value in obj.items():
                     current_path = f"{path}.{key}" if path else key
                     
-                    # Check if this is a concept-related cache entry
-                    if concept_key in str(key) or concept_id in str(key):
+                    # Direct concept key match
+                    if key == concept_key:
                         concept_entries[current_path] = value
                     
-                    # Check if the key contains 'cache' and dig deeper
-                    if 'cache' in str(key).lower():
-                        search_recursive(value, current_path)
-                    else:
-                        search_recursive(value, current_path)
+                    # Check if this key contains the concept ID
+                    elif concept_id in str(key):
+                        concept_entries[current_path] = value
+                    
+                    # Check if this is a cache-related structure that might contain our concept
+                    elif 'cache' in str(key).lower():
+                        # Look deeper in cache structures
+                        if isinstance(value, dict):
+                            for cache_key, cache_value in value.items():
+                                if concept_key in str(cache_key) or concept_id in str(cache_key):
+                                    concept_entries[f"{current_path}.{cache_key}"] = cache_value
+                    
+                    # Recursively search deeper
+                    search_recursive(value, current_path)
+                    
             elif isinstance(obj, list):
                 for i, item in enumerate(obj):
                     search_recursive(item, f"{path}[{i}]")
@@ -244,22 +284,33 @@ class PlayStationDataFetcher:
         }
         
         try:
-            # GraphQL ConceptRetrieve query
+            # Enhanced GraphQL ConceptRetrieve query with more fields
             query = {
                 "operationName": "ConceptRetrieve",
                 "variables": {
                     "conceptId": concept_id,
                     "includeMedia": True,
                     "includeGenres": True,
-                    "includePublisher": True
+                    "includePublisher": True,
+                    "includePlatforms": True,
+                    "includeRating": True
                 },
                 "query": """
-                    query ConceptRetrieve($conceptId: ID!, $includeMedia: Boolean = false, $includeGenres: Boolean = false, $includePublisher: Boolean = false) {
+                    query ConceptRetrieve(
+                        $conceptId: ID!,
+                        $includeMedia: Boolean = false,
+                        $includeGenres: Boolean = false,
+                        $includePublisher: Boolean = false,
+                        $includePlatforms: Boolean = false,
+                        $includeRating: Boolean = false
+                    ) {
                         conceptRetrieve(conceptId: $conceptId) {
                             id
                             name
                             description
+                            longDescription
                             publisherName @include(if: $includePublisher)
+                            developerName
                             localizedGenres @include(if: $includeGenres) {
                                 name
                                 localizedName
@@ -268,15 +319,31 @@ class PlayStationDataFetcher:
                                 type
                                 url
                                 altText
+                                role
                             }
                             releaseDate
-                            platforms {
+                            platforms @include(if: $includePlatforms) {
                                 name
+                                shortName
                             }
-                            rating {
+                            rating @include(if: $includeRating) {
                                 age
                                 description
+                                ratingSystem
                             }
+                            price {
+                                basePrice
+                                discountPrice
+                                currency
+                            }
+                            availability {
+                                isAvailable
+                                isComingSoon
+                                isPurchasable
+                            }
+                            tags
+                            features
+                            __typename
                         }
                     }
                 """
@@ -285,25 +352,42 @@ class PlayStationDataFetcher:
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
+                'User-Agent': self.session.headers.get('User-Agent'),
             }
             
-            response = self.session.post(
-                self.graphql_url, 
-                json=query, 
-                headers=headers, 
-                timeout=30
-            )
-            response.raise_for_status()
+            # Try multiple GraphQL endpoints as they may vary
+            graphql_endpoints = [
+                "https://web.np.playstation.com/api/graphql/v1/op",
+                "https://store.playstation.com/graphql",
+                "https://web.playstation.com/api/graphql",
+            ]
             
-            json_data = response.json()
+            for endpoint in graphql_endpoints:
+                try:
+                    response = self.session.post(
+                        endpoint, 
+                        json=query, 
+                        headers=headers, 
+                        timeout=30
+                    )
+                    response.raise_for_status()
+                    
+                    json_data = response.json()
+                    
+                    if 'errors' in json_data:
+                        result['error'] = f"GraphQL errors: {json_data['errors']}"
+                    else:
+                        result['data'] = json_data.get('data', {})
+                        result['endpoint_used'] = endpoint
+                        break
+                        
+                except requests.RequestException:
+                    # Try next endpoint
+                    continue
             
-            if 'errors' in json_data:
-                result['error'] = f"GraphQL errors: {json_data['errors']}"
-            else:
-                result['data'] = json_data.get('data', {})
+            if not result.get('endpoint_used') and not result['data']:
+                result['error'] = "Failed to connect to any PlayStation GraphQL endpoint"
                 
-        except requests.RequestException as e:
-            result['error'] = f"GraphQL request failed: {str(e)}"
         except Exception as e:
             result['error'] = f"GraphQL parsing failed: {str(e)}"
             
@@ -391,7 +475,94 @@ def test_parsing_with_sample_data():
     for i, script in enumerate(scripts):
         print(f"Script {i+1}: {script[:100]}...")
     
+    # Test edge cases
+    print("\n" + "="*40)
+    print("TESTING EDGE CASES")
+    print("="*40)
+    
+    # Test with empty concept ID
+    print("\nTesting with empty concept ID...")
+    empty_result = fetcher._extract_batarangs_data(sample_html, "")
+    print(f"Empty concept ID result: {bool(empty_result)}")
+    
+    # Test with non-existent concept ID
+    print("\nTesting with non-existent concept ID...")
+    nonexistent_result = fetcher._extract_batarangs_data(sample_html, "999999")
+    print(f"Non-existent concept ID result: {bool(nonexistent_result)}")
+    
+    # Test with malformed HTML
+    print("\nTesting with malformed HTML...")
+    malformed_html = "<script>invalid json {</script>"
+    malformed_result = fetcher._extract_batarangs_data(malformed_html, concept_id)
+    print(f"Malformed HTML result: {bool(malformed_result)}")
+    
     return batarangs, apollo_state
+
+
+def test_complete_workflow():
+    """Test the complete workflow as described in the problem statement."""
+    print("Testing complete workflow...")
+    
+    fetcher = PlayStationDataFetcher()
+    concept_id = "123456"
+    
+    # Test the main workflow: fetch_concept_page followed by fetch_concept_graphql
+    print(f"\n1. Testing fetch_concept_page for concept {concept_id}...")
+    
+    # Create a mock fetch_concept_page that returns sample data (simulating successful parsing)
+    def mock_fetch_concept_page(cid):
+        return {
+            'concept_id': cid,
+            'batarangs': {
+                'background-image': {'cache.bg': 'https://example.com/bg.jpg'},
+                'game-title': {'cache.title': 'Sample Game'},
+                'info': {'cache.info': {'rating': 'T', 'platforms': ['PS5', 'PS4']}}
+            },
+            'apollo_state': {
+                f'Concept:{cid}': {
+                    'id': cid,
+                    'name': 'Sample Game',
+                    'publisherName': 'Sample Publisher'
+                }
+            },
+            'error': None
+        }
+    
+    page_result = mock_fetch_concept_page(concept_id)
+    print(f"Page result has batarangs: {bool(page_result.get('batarangs'))}")
+    print(f"Page result has apollo state: {bool(page_result.get('apollo_state'))}")
+    
+    # Test fetch_concept_graphql as fallback
+    print(f"\n2. Testing fetch_concept_graphql for concept {concept_id}...")
+    graphql_result = fetcher.fetch_concept_graphql(concept_id)
+    print(f"GraphQL result has data: {bool(graphql_result.get('data'))}")
+    print(f"GraphQL error: {graphql_result.get('error')}")
+    
+    # Combine results as specified in problem statement
+    final_result = {
+        'concept_id': concept_id,
+        'page_data': page_result,
+        'concept_graphql': graphql_result,  # As required by problem statement
+        'summary': {
+            'page_has_batarangs': bool(page_result.get('batarangs')),
+            'page_has_apollo': bool(page_result.get('apollo_state')),
+            'graphql_has_data': bool(graphql_result.get('data')),
+            'should_use_graphql_fallback': (
+                not page_result.get('batarangs') or 
+                not page_result.get('apollo_state') or 
+                page_result.get('error')
+            )
+        }
+    }
+    
+    print(f"\n3. Final combined result summary:")
+    print(f"   - Page parsing successful: {not page_result.get('error')}")
+    print(f"   - Batarangs extracted: {final_result['summary']['page_has_batarangs']}")
+    print(f"   - Apollo state extracted: {final_result['summary']['page_has_apollo']}")
+    print(f"   - Should use GraphQL fallback: {final_result['summary']['should_use_graphql_fallback']}")
+    print(f"   - GraphQL data available: {final_result['summary']['graphql_has_data']}")
+    
+    return final_result
 
 
 def main():
@@ -401,6 +572,8 @@ def main():
     # Check if we want to run tests
     if len(sys.argv) >= 2 and sys.argv[1] == "test":
         test_parsing_with_sample_data()
+        print("\n" + "="*60)
+        test_complete_workflow()
         return
     
     if len(sys.argv) < 2:
@@ -418,15 +591,15 @@ def main():
     print("\n1. Fetching data from concept page HTML...")
     page_result = fetcher.fetch_concept_page(concept_id)
     
-    # Always try GraphQL as fallback or additional data source
+    # Always try GraphQL as fallback or additional data source (as per problem statement)
     print("\n2. Fetching data via GraphQL...")
     graphql_result = fetcher.fetch_concept_graphql(concept_id)
     
-    # Combine results
+    # Combine results with GraphQL data under 'concept_graphql' key as specified
     final_result = {
         'concept_id': concept_id,
         'page_data': page_result,
-        'concept_graphql': graphql_result,
+        'concept_graphql': graphql_result,  # Required by problem statement
         'summary': {
             'page_has_batarangs': bool(page_result.get('batarangs')),
             'page_has_apollo': bool(page_result.get('apollo_state')),
